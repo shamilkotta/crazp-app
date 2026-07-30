@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "extends": ["./base.json"],
+  "plugins": ["unicorn", "typescript", "react", "nextjs"],
+  "env": {
+    "builtin": true,
+    "serviceworker": true
+  },
+  "settings": {
+    "react": {
+      "version": "19.2.4"
+    }
+  }
+}

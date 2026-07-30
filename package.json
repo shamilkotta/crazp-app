@@ -6,14 +6,14 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
-    "format": "turbo format",
+    "format": "oxfmt .",
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
-    "@workspace/eslint-config": "workspace:*",
+    "@workspace/oxlint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
-    "prettier": "^3.8.3",
-    "prettier-plugin-tailwindcss": "^0.8.0",
+    "oxfmt": "^0.61.0",
+    "oxlint": "^1.76.0",
     "turbo": "^2.9.18",
     "typescript": "^5"
   },
