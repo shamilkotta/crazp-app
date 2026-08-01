@@ -13,9 +13,8 @@ const fontMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "crazp — Shape an agent",
-  description:
-    "Tune how your agent thinks and what it can reach. Then set it loose on whatever you need done.",
+  title: "crazp — Dashboard",
+  description: "Deploy, configure, and manage AI agents.",
 };
 
 export default function RootLayout({

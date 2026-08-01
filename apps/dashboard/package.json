@@ -1,0 +1,43 @@
+{
+  "name": "dashboard",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname app.localhost --port 3001",
+    "build": "next build",
+    "start": "next start --hostname app.localhost --port 3001",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "auth:generate": "npx --yes @better-auth/cli@latest generate --config ../../packages/auth/src/index.ts --output ../../packages/db/src/auth.schema.ts -y",
+    "db:generate": "pnpm --filter @workspace/db db:generate",
+    "db:migrate:local": "wrangler d1 migrations apply crazp-db --local"
+  },
+  "dependencies": {
+    "@opennextjs/cloudflare": "^1.6.5",
+    "@workspace/auth": "workspace:*",
+    "@workspace/db": "workspace:*",
+    "@workspace/ui": "workspace:*",
+    "better-auth": "^1.5.0",
+    "lucide-react": "^1.28.0",
+    "next": "16.2.11",
+    "next-themes": "^0.4.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260405.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@workspace/oxlint-config": "workspace:^",
+    "@workspace/typescript-config": "workspace:*",
+    "oxlint": "^1.76.0",
+    "typescript": "^5",
+    "wrangler": "^4.13.2"
+  }
+}

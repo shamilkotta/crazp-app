@@ -1,5 +1,5 @@
 {
-  "name": "nixp-app",
+  "name": "crazp-app",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -7,7 +7,10 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "oxfmt .",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "db:generate": "pnpm --filter @workspace/db db:generate",
+    "db:migrate:local": "pnpm --filter dashboard db:migrate:local",
+    "auth:generate": "pnpm --filter dashboard auth:generate"
   },
   "devDependencies": {
     "@workspace/oxlint-config": "workspace:*",

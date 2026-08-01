@@ -1,0 +1,6 @@
+BETTER_AUTH_SECRET=dev-secret-change-in-production-min-32-chars
+BETTER_AUTH_URL=http://app.localhost:3001
+BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3000,http://app.localhost:3001
+EMAIL_FROM=noreply@crazp.dev
+NEXT_PUBLIC_BETTER_AUTH_URL=http://app.localhost:3001
+NEXT_PUBLIC_WEB_URL=http://localhost:3000

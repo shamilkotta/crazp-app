@@ -1,0 +1,27 @@
+{
+  "name": "@workspace/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "lint": "oxlint"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20260405.1",
+    "drizzle-orm": "^0.45.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260405.1",
+    "@workspace/oxlint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "drizzle-kit": "^0.31.0",
+    "oxlint": "^1.76.0",
+    "typescript": "^5"
+  }
+}

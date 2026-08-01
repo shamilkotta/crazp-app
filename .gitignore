@@ -17,6 +17,11 @@ coverage
 .next/
 out/
 
+# cloudflare / opennext
+.open-next/
+.wrangler/
+.dev.vars
+
 # production
 build
 dist
@@ -43,3 +48,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+.agents/skills/*
+skills-lock.json
