@@ -1,35 +1,22 @@
 import { DashboardHeader } from "@/components/dashboard-header";
 import { requireSession } from "@/lib/session";
-import { getAuth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { listUserOrganizations } from "@/lib/organization";
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await requireSession();
-
-  let organizationName: string | null = null;
-  const activeOrgId = session.session.activeOrganizationId;
-
-  if (activeOrgId) {
-    try {
-      const auth = await getAuth();
-      const org = await auth.api.getFullOrganization({
-        headers: await headers(),
-        query: { organizationId: activeOrgId },
-      });
-      organizationName = org?.name ?? null;
-    } catch {
-      organizationName = null;
-    }
-  }
+  const [session, organizations] = await Promise.all([
+    requireSession(),
+    listUserOrganizations(),
+  ]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <DashboardHeader
-        organizationName={organizationName}
+        organizations={organizations}
+        activeOrganizationId={session.session.activeOrganizationId}
         userName={session.user.name}
       />
       {children}

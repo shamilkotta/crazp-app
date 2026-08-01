@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { authClient } from "@workspace/auth/client";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@workspace/ui/components/button";
 import {
   Field,
@@ -58,11 +57,7 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="relative min-h-screen bg-background px-4 py-12 text-foreground">
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
-
+    <div className="min-h-screen bg-background px-4 py-12 text-foreground">
       <div className="mx-auto max-w-sm">
         <div className="mb-8">
           <Link

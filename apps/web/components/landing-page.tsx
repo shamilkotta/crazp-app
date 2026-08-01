@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@workspace/ui/lib/utils";
 
 type NodeKind = "agent" | "decision" | "tool";
@@ -367,7 +366,6 @@ function MiniNav() {
           <span>crazp</span>
         </div>
         <div className="flex items-center gap-2">
-          <ThemeToggle />
           <span className="hidden border border-current/15 px-3 py-1.5 text-xs text-muted-foreground sm:inline-flex">
             Waitlist open
           </span>

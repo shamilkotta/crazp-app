@@ -1,20 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Bot, LogOut } from "lucide-react";
 import { authClient } from "@workspace/auth/client";
-import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  OrganizationSwitcher,
+  type OrganizationOption,
+} from "@/components/organization-switcher";
 import { Button } from "@workspace/ui/components/button";
 
 export function DashboardHeader({
-  organizationName,
+  organizations,
+  activeOrganizationId,
   userName,
 }: {
-  organizationName?: string | null;
+  organizations: OrganizationOption[];
+  activeOrganizationId?: string | null;
   userName?: string | null;
 }) {
   const router = useRouter();
+  const params = useParams<{ teamSlug?: string }>();
+  const teamSlug = typeof params.teamSlug === "string" ? params.teamSlug : null;
+
+  const homeHref =
+    teamSlug ??
+    organizations.find((org) => org.id === activeOrganizationId)?.slug ??
+    organizations[0]?.slug;
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -25,9 +37,9 @@ export function DashboardHeader({
   return (
     <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Link
-            href="/agents"
+            href={homeHref ? `/${homeHref}` : "/"}
             className="flex items-center gap-2 font-semibold"
           >
             <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -35,10 +47,15 @@ export function DashboardHeader({
             </div>
             <span>crazp</span>
           </Link>
-          {organizationName ? (
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              / {organizationName}
-            </span>
+          {organizations.length > 0 ? (
+            <>
+              <span className="hidden text-muted-foreground sm:inline">/</span>
+              <OrganizationSwitcher
+                organizations={organizations}
+                activeOrganizationId={activeOrganizationId}
+                activeTeamSlug={teamSlug}
+              />
+            </>
           ) : null}
         </div>
 
@@ -48,7 +65,6 @@ export function DashboardHeader({
               {userName}
             </span>
           ) : null}
-          <ThemeToggle />
           <Button variant="outline" size="sm" onClick={handleSignOut}>
             <LogOut data-icon="inline-start" />
             Sign out

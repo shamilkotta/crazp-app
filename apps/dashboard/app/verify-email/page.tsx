@@ -1,14 +1,9 @@
 import Link from "next/link";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@workspace/ui/components/button";
 
 export default function VerifyEmailPage() {
   return (
-    <div className="relative min-h-screen bg-background px-4 py-12 text-foreground">
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
-
+    <div className="min-h-screen bg-background px-4 py-12 text-foreground">
       <div className="mx-auto max-w-sm">
         <h1 className="text-2xl font-semibold tracking-tight">
           Check your email
