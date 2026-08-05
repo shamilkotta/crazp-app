@@ -6,8 +6,8 @@
     "noEmit": true,
     "declaration": false,
     "declarationMap": false,
-    "types": ["@cloudflare/workers-types", "@types/node"]
+    "types": ["@cloudflare/workers-types"]
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "drizzle.config.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
 }

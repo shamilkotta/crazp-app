@@ -10,6 +10,7 @@
     "typecheck": "turbo typecheck",
     "db:generate": "pnpm --filter @workspace/db db:generate",
     "db:migrate:local": "pnpm --filter dashboard db:migrate:local",
+    "db:studio": "pnpm --filter @workspace/db db:studio",
     "auth:generate": "pnpm --filter dashboard auth:generate"
   },
   "devDependencies": {

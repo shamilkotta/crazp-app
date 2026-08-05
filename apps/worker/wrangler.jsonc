@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "crazp-agent-build-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-07-27",
+  "compatibility_flags": ["nodejs_compat_v2"],
+  "d1_databases": [
+    {
+      "binding": "DATABASE",
+      "database_name": "crazp-db",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "../../packages/db/migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "AGENT_DEPLOYMENT_BUCKET",
+      "bucket_name": "crazp-agent-deployments",
+    },
+  ],
+  "queues": {
+    "consumers": [
+      {
+        "queue": "crazp-agent-deployments",
+        "max_batch_size": 1,
+      },
+    ],
+  },
+  "vars": {
+    "CLOUDFLARE_API_BASE_URL": "https://api.cloudflare.com/client/v4",
+  },
+}

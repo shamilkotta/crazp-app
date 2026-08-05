@@ -1,10 +1,10 @@
 import * as authSchema from "./auth.schema";
-import { agents } from "./app-schema";
+import * as agentSchema from "./agent.schema";
 
 export const schema = {
   ...authSchema,
-  agents,
+  ...agentSchema,
 } as const;
 
-export * from "./app-schema";
+export * from "./agent.schema";
 export * from "./auth.schema";

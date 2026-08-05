@@ -10,14 +10,17 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
+    "db:studio": "drizzle-kit studio",
     "lint": "oxlint"
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20260405.1",
-    "drizzle-orm": "^0.45.0"
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260405.1",
+    "@libsql/client": "^0.17.4",
+    "@types/node": "^20.19.41",
     "@workspace/oxlint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "drizzle-kit": "^0.31.0",
