@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { animate, cubicBezier, motion, useReducedMotion } from "motion/react";
+import { animate, cubicBezier, useReducedMotion } from "motion/react";
 import { Bot, Component, MousePointer2 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import {
@@ -38,6 +38,7 @@ import {
   SlackChannelCard,
   SlackThreadCard,
   SpreadsheetCard,
+  StageAnimationProvider,
   TerminalCard,
   VoiceTranscriptCard,
   WebhookEventCard,
@@ -428,12 +429,19 @@ function shuffled(length: number): number[] {
 function CardShell({
   title,
   children,
+  live,
 }: {
   title: string;
   children: ReactNode;
+  live: boolean;
 }) {
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border/60 bg-muted p-1 shadow-sm">
+    <div
+      className={cn(
+        "flex h-full w-full flex-col rounded-lg border border-border/60 bg-muted p-1 shadow-sm",
+        !live && "agent-card-paused"
+      )}
+    >
       <div className="flex h-7 shrink-0 items-center gap-1.5 px-2">
         <Component className="size-3 text-muted-foreground" strokeWidth={1.5} />
         <span className="line-clamp-1 font-mono text-[10px] text-muted-foreground">
@@ -441,7 +449,9 @@ function CardShell({
         </span>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-border bg-background">
-        {children}
+        <StageAnimationProvider animated={live}>
+          {children}
+        </StageAnimationProvider>
       </div>
     </div>
   );
@@ -468,7 +478,10 @@ export function AgentStage({ className }: { className?: string }) {
     const el = viewportRef.current;
     if (!el) return;
     const measure = () =>
-      setViewport({ w: el.clientWidth, h: el.clientHeight });
+      setViewport((current) => {
+        const next = { w: el.clientWidth, h: el.clientHeight };
+        return current.w === next.w && current.h === next.h ? current : next;
+      });
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
@@ -577,6 +590,8 @@ export function AgentStage({ className }: { className?: string }) {
     shownRef.current = active;
 
     return () => {
+      flightRef.current?.stop();
+      flightRef.current = null;
       if (cueTimerRef.current !== null) {
         window.clearTimeout(cueTimerRef.current);
         cueTimerRef.current = null;
@@ -628,31 +643,37 @@ export function AgentStage({ className }: { className?: string }) {
         .agent-cue {
           animation: agent-cue 3.6s ease-in-out infinite;
         }
+        .agent-card-paused,
+        .agent-card-paused * {
+          animation-play-state: paused !important;
+        }
       `}</style>
 
       {measured ? (
         <div
           ref={canvasRef}
-          className="absolute top-0 left-0 will-change-transform"
+          className="absolute top-0 left-0"
           style={{
             width: CANVAS_W,
             height: CANVAS_H,
             transformOrigin: "0 0",
+            willChange: engaged && !reducedMotion ? "transform" : undefined,
           }}
         >
           <div
             aria-hidden
-            className="absolute -inset-[1200px] bg-[radial-gradient(circle,currentColor_1px,transparent_1px)] bg-size-[24px_24px] text-foreground opacity-[0.08] will-change-transform"
+            className="absolute -inset-300 bg-[radial-gradient(circle,currentColor_1px,transparent_1px)] bg-size-[24px_24px] text-foreground opacity-[0.08]"
           />
 
           {CARDS.map((card, index) => {
             const isFocused = index === active;
             const isLifted = isFocused || (!reducedMotion && hovered === index);
+            const live = isFocused || hovered === index;
             return (
-              <motion.div
+              <div
                 key={card.id}
                 className={cn(
-                  "absolute rounded-lg transition-shadow duration-500",
+                  "absolute rounded-lg transition-[box-shadow,opacity,transform] duration-500",
                   isFocused
                     ? "shadow-[0_24px_64px_-28px_rgba(0,0,0,0.55)] ring-1 ring-foreground/20"
                     : "shadow-[0_10px_28px_-18px_rgba(0,0,0,0.35)]"
@@ -663,32 +684,21 @@ export function AgentStage({ className }: { className?: string }) {
                   width: card.w,
                   height: card.h,
                   zIndex: isFocused ? 10 : hovered === index ? 5 : 1,
-                }}
-                initial={false}
-                animate={{
                   opacity: reducedMotion || isLifted ? 1 : 0.55,
-                  scale: !reducedMotion && isFocused ? 1.05 : 1,
-                }}
-                transition={{
-                  opacity: {
-                    duration: 0.85,
-                    ease: "easeInOut",
-                    delay: isFocused ? focusDelay : 0,
-                  },
-                  scale: {
-                    type: "spring",
-                    stiffness: 170,
-                    damping: 26,
-                    delay: isFocused ? focusDelay : 0,
-                  },
+                  transform:
+                    !reducedMotion && isFocused ? "scale(1.05)" : undefined,
+                  transitionDelay: isFocused ? `${focusDelay}s` : undefined,
+                  transitionTimingFunction: "ease-in-out",
                 }}
                 onPointerEnter={() => setHovered(index)}
                 onPointerLeave={() =>
                   setHovered((prev) => (prev === index ? null : prev))
                 }
               >
-                <CardShell title={card.title}>{card.node}</CardShell>
-              </motion.div>
+                <CardShell title={card.title} live={live}>
+                  {card.node}
+                </CardShell>
+              </div>
             );
           })}
 

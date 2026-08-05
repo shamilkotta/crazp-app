@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type DependencyList,
+  type ReactNode,
+} from "react";
 import {
   Bot,
   Calendar,
@@ -34,6 +41,35 @@ import {
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 
+const StageAnimationContext = createContext(true);
+
+export function StageAnimationProvider({
+  animated,
+  children,
+}: {
+  animated: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <StageAnimationContext value={animated}>{children}</StageAnimationContext>
+  );
+}
+
+function useAnimatedInterval(
+  callback: () => void,
+  delay: number,
+  deps: DependencyList = []
+) {
+  const animated = useContext(StageAnimationContext);
+
+  useEffect(() => {
+    if (!animated) return;
+    const id = window.setInterval(callback, delay);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animated, delay, ...deps]);
+}
+
 function PulseDot({ className }: { className?: string }) {
   return (
     <span
@@ -65,12 +101,9 @@ function TypingDots() {
 export function ChatInterfaceCard() {
   const [step, setStep] = useState(0);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setStep((s) => (s + 1) % 4);
-    }, 2200);
-    return () => window.clearInterval(id);
-  }, []);
+  useAnimatedInterval(() => {
+    setStep((s) => (s + 1) % 4);
+  }, 2200);
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -117,12 +150,9 @@ export function BrowserAgentCard() {
     "notion.so/brief/launch",
   ];
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setUrlIndex((i) => (i + 1) % urls.length);
-    }, 2800);
-    return () => window.clearInterval(id);
-  }, [urls.length]);
+  useAnimatedInterval(() => {
+    setUrlIndex((i) => (i + 1) % urls.length);
+  }, 2800, [urls.length]);
 
   return (
     <div className="flex h-full flex-col">
@@ -177,10 +207,7 @@ export function CodeEditorCard() {
   ];
   const [cursor, setCursor] = useState(true);
 
-  useEffect(() => {
-    const id = window.setInterval(() => setCursor((c) => !c), 530);
-    return () => window.clearInterval(id);
-  }, []);
+  useAnimatedInterval(() => setCursor((c) => !c), 530);
 
   return (
     <div className="flex h-full flex-col font-mono text-[10px]">
@@ -219,12 +246,9 @@ export function CodeEditorCard() {
 export function PullRequestCard() {
   const [checks, setChecks] = useState(1);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setChecks((c) => (c >= 3 ? 1 : c + 1));
-    }, 1800);
-    return () => window.clearInterval(id);
-  }, []);
+  useAnimatedInterval(() => {
+    setChecks((c) => (c >= 3 ? 1 : c + 1));
+  }, 1800);
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -274,12 +298,9 @@ export function PullRequestCard() {
 export function EmailComposeCard() {
   const [progress, setProgress] = useState(0);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setProgress((p) => (p >= 100 ? 0 : p + 8));
-    }, 400);
-    return () => window.clearInterval(id);
-  }, []);
+  useAnimatedInterval(() => {
+    setProgress((p) => (p >= 100 ? 0 : p + 8));
+  }, 400);
 
   const body =
     "Hi Maya — attaching the revised proposal and two times that work next week.";
@@ -304,7 +325,7 @@ export function EmailComposeCard() {
           <span className="truncate">Follow-up: Q3 proposal</span>
         </div>
       </div>
-      <p className="mt-1 min-h-[3.5rem] flex-1 text-[10px] leading-relaxed text-foreground/90">
+      <p className="mt-1 min-h-14 flex-1 text-[10px] leading-relaxed text-foreground/90">
         {visible}
         <span className="inline-block h-3 w-px animate-pulse bg-foreground align-middle" />
       </p>
@@ -324,12 +345,9 @@ export function OrderFlowCard() {
   const stages = ["Cart", "Pay", "Ship", "Done"];
   const [stage, setStage] = useState(0);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setStage((s) => (s + 1) % stages.length);
-    }, 1600);
-    return () => window.clearInterval(id);
-  }, [stages.length]);
+  useAnimatedInterval(() => {
+    setStage((s) => (s + 1) % stages.length);
+  }, 1600, [stages.length]);
 
   return (
     <div className="flex h-full flex-col gap-3 p-3">
@@ -377,12 +395,9 @@ export function CalendarBookCard() {
   const slots = ["Tue 10:00", "Tue 14:30", "Wed 09:00"];
   const [picked, setPicked] = useState(1);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setPicked((p) => (p + 1) % slots.length);
-    }, 2000);
-    return () => window.clearInterval(id);
-  }, [slots.length]);
+  useAnimatedInterval(() => {
+    setPicked((p) => (p + 1) % slots.length);
+  }, 2000, [slots.length]);
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -458,7 +473,7 @@ export function TerminalCard() {
     "→ bundling worker…",
   ]);
 
-  useEffect(() => {
+  useAnimatedInterval(() => {
     const sequence = [
       ["$ crazp run deploy-preview", "→ bundling worker…"],
       [
@@ -473,16 +488,16 @@ export function TerminalCard() {
         "✓ preview ready",
       ],
     ];
-    let i = 0;
-    const id = window.setInterval(() => {
-      i = (i + 1) % sequence.length;
-      setLines(sequence[i]!);
-    }, 1600);
-    return () => window.clearInterval(id);
-  }, []);
+    setLines((current) => {
+      const currentIndex = sequence.findIndex(
+        (lines) => lines.length === current.length
+      );
+      return sequence[(currentIndex + 1) % sequence.length]!;
+    });
+  }, 1600);
 
   return (
-    <div className="flex h-full flex-col bg-foreground/[0.03] p-3 font-mono text-[10px]">
+    <div className="flex h-full flex-col bg-foreground/3 p-3 font-mono text-[10px]">
       <div className="mb-2 flex items-center gap-1.5 text-muted-foreground">
         <Terminal className="size-3" />
         agent-shell
@@ -516,12 +531,9 @@ export function InboxTriageCard() {
   ];
   const [active, setActive] = useState(0);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setActive((a) => (a + 1) % items.length);
-    }, 1700);
-    return () => window.clearInterval(id);
-  }, [items.length]);
+  useAnimatedInterval(() => {
+    setActive((a) => (a + 1) % items.length);
+  }, 1700, [items.length]);
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -562,7 +574,7 @@ export function DiffViewCard() {
         faq.md
       </div>
       <div className="flex flex-1 flex-col gap-0.5 p-2">
-        <div className="rounded-sm bg-foreground/[0.04] px-2 py-0.5 text-muted-foreground">
+        <div className="rounded-sm bg-foreground/4 px-2 py-0.5 text-muted-foreground">
           {"  ## Pricing"}
         </div>
         <div className="rounded-sm bg-foreground/10 px-2 py-0.5 line-through opacity-60">
@@ -571,7 +583,7 @@ export function DiffViewCard() {
         <div className="rounded-sm bg-foreground/10 px-2 py-0.5">
           + Free for solo · Pro from $29
         </div>
-        <div className="rounded-sm bg-foreground/[0.04] px-2 py-0.5 text-muted-foreground">
+        <div className="rounded-sm bg-foreground/4 px-2 py-0.5 text-muted-foreground">
           {"  Contact sales for Enterprise"}
         </div>
       </div>
@@ -582,10 +594,7 @@ export function DiffViewCard() {
 export function DeliveryMapCard() {
   const [pin, setPin] = useState(0);
 
-  useEffect(() => {
-    const id = window.setInterval(() => setPin((p) => (p + 1) % 3), 1400);
-    return () => window.clearInterval(id);
-  }, []);
+  useAnimatedInterval(() => setPin((p) => (p + 1) % 3), 1400);
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden p-3">
@@ -734,12 +743,9 @@ export function AgentThinkingCard() {
   ];
   const [active, setActive] = useState(0);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setActive((a) => (a + 1) % steps.length);
-    }, 1500);
-    return () => window.clearInterval(id);
-  }, [steps.length]);
+  useAnimatedInterval(() => {
+    setActive((a) => (a + 1) % steps.length);
+  }, 1500, [steps.length]);
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -812,8 +818,10 @@ export function SpreadsheetCard() {
 export function SlackChannelCard() {
   const [typing, setTyping] = useState(false);
   const [draft, setDraft] = useState("");
+  const animated = useContext(StageAnimationContext);
 
   useEffect(() => {
+    if (!animated) return;
     const full =
       "Linked the PR + updated the FAQ. Ready for review @jordan";
     let i = 0;
@@ -834,7 +842,7 @@ export function SlackChannelCard() {
       }
     }, 120);
     return () => window.clearInterval(id);
-  }, []);
+  }, [animated]);
 
   return (
     <div className="flex h-full flex-col text-[10px]">
@@ -903,12 +911,9 @@ export function LinearIssueCard() {
   const [status, setStatus] = useState(0);
   const statuses = ["Backlog", "In Progress", "In Review", "Done"];
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setStatus((s) => (s + 1) % statuses.length);
-    }, 1800);
-    return () => window.clearInterval(id);
-  }, [statuses.length]);
+  useAnimatedInterval(() => {
+    setStatus((s) => (s + 1) % statuses.length);
+  }, 1800, [statuses.length]);
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -953,12 +958,9 @@ export function LinearIssueCard() {
 export function NotionPageCard() {
   const [lines, setLines] = useState(1);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setLines((n) => (n >= 4 ? 1 : n + 1));
-    }, 1400);
-    return () => window.clearInterval(id);
-  }, []);
+  useAnimatedInterval(() => {
+    setLines((n) => (n >= 4 ? 1 : n + 1));
+  }, 1400);
 
   const blocks = [
     "Pricing FAQ",
@@ -1001,12 +1003,9 @@ export function KanbanBoardCard() {
   ];
   const [col, setCol] = useState(0);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setCol((c) => (c + 1) % 3);
-    }, 1600);
-    return () => window.clearInterval(id);
-  }, []);
+  useAnimatedInterval(() => {
+    setCol((c) => (c + 1) % 3);
+  }, 1600);
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -1044,10 +1043,7 @@ export function KanbanBoardCard() {
 export function ApprovalGateCard() {
   const [waiting, setWaiting] = useState(true);
 
-  useEffect(() => {
-    const id = window.setInterval(() => setWaiting((w) => !w), 2200);
-    return () => window.clearInterval(id);
-  }, []);
+  useAnimatedInterval(() => setWaiting((w) => !w), 2200);
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -1083,10 +1079,7 @@ export function ApprovalGateCard() {
 export function DatabaseQueryCard() {
   const [running, setRunning] = useState(true);
 
-  useEffect(() => {
-    const id = window.setInterval(() => setRunning((r) => !r), 2000);
-    return () => window.clearInterval(id);
-  }, []);
+  useAnimatedInterval(() => setRunning((r) => !r), 2000);
 
   return (
     <div className="flex h-full flex-col font-mono text-[10px]">
@@ -1124,12 +1117,9 @@ export function MeetingNotesCard() {
   ];
   const [count, setCount] = useState(1);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setCount((c) => (c >= notes.length ? 1 : c + 1));
-    }, 1500);
-    return () => window.clearInterval(id);
-  }, [notes.length]);
+  useAnimatedInterval(() => {
+    setCount((c) => (c >= notes.length ? 1 : c + 1));
+  }, 1500, [notes.length]);
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -1159,12 +1149,9 @@ export function CiPipelineCard() {
   const steps = ["Install", "Lint", "Test", "Deploy"];
   const [step, setStep] = useState(0);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setStep((s) => (s + 1) % (steps.length + 1));
-    }, 1200);
-    return () => window.clearInterval(id);
-  }, [steps.length]);
+  useAnimatedInterval(() => {
+    setStep((s) => (s + 1) % (steps.length + 1));
+  }, 1200, [steps.length]);
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -1209,7 +1196,10 @@ export function FileSearchCard() {
   ];
   const [q, setQ] = useState("");
 
+  const animated = useContext(StageAnimationContext);
+
   useEffect(() => {
+    if (!animated) return;
     const full = "pricing faq sso";
     let i = 0;
     const id = window.setInterval(() => {
@@ -1217,7 +1207,7 @@ export function FileSearchCard() {
       setQ(full.slice(0, Math.min(i, full.length)));
     }, 160);
     return () => window.clearInterval(id);
-  }, []);
+  }, [animated]);
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -1253,12 +1243,9 @@ export function VoiceTranscriptCard() {
     "Customer: Perfect, send an invite.",
   ];
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setLine((l) => (l + 1) % lines.length);
-    }, 1800);
-    return () => window.clearInterval(id);
-  }, [lines.length]);
+  useAnimatedInterval(() => {
+    setLine((l) => (l + 1) % lines.length);
+  }, 1800, [lines.length]);
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -1291,10 +1278,7 @@ export function VoiceTranscriptCard() {
 export function FlightBookCard() {
   const [booked, setBooked] = useState(false);
 
-  useEffect(() => {
-    const id = window.setInterval(() => setBooked((b) => !b), 2400);
-    return () => window.clearInterval(id);
-  }, []);
+  useAnimatedInterval(() => setBooked((b) => !b), 2400);
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -1330,12 +1314,9 @@ export function MetricsPulseCard() {
   const bars = [40, 65, 48, 80, 56, 72, 90, 62];
   const [hl, setHl] = useState(3);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setHl((h) => (h + 1) % bars.length);
-    }, 900);
-    return () => window.clearInterval(id);
-  }, [bars.length]);
+  useAnimatedInterval(() => {
+    setHl((h) => (h + 1) % bars.length);
+  }, 900, [bars.length]);
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -1370,12 +1351,9 @@ export function WebhookEventCard() {
   ];
   const [active, setActive] = useState(2);
 
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setActive((a) => (a + 1) % events.length);
-    }, 1600);
-    return () => window.clearInterval(id);
-  }, [events.length]);
+  useAnimatedInterval(() => {
+    setActive((a) => (a + 1) % events.length);
+  }, 1600, [events.length]);
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
