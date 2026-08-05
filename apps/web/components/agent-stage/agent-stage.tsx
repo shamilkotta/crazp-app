@@ -662,7 +662,7 @@ export function AgentStage({ className }: { className?: string }) {
         >
           <div
             aria-hidden
-            className="absolute -inset-300 bg-[radial-gradient(circle,currentColor_1px,transparent_1px)] bg-size-[24px_24px] text-foreground opacity-[0.08]"
+            className="absolute -inset-300 bg-[radial-gradient(circle,currentColor_1px,transparent_1px)] bg-size-[24px_24px] text-foreground opacity-[0.1]"
           />
 
           {CARDS.map((card, index) => {
