@@ -7,7 +7,6 @@ import { createDb } from "@workspace/db";
 import { members } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins/organization";
 import { withCloudflare } from "better-auth-cloudflare";
@@ -91,7 +90,7 @@ function cookieDomain(env: AuthEnv) {
   return undefined;
 }
 
-async function authBuilder(ctx: CloudflareContext) {
+function authBuilder(ctx: CloudflareContext) {
   const db = createDb(ctx.env.DATABASE);
   const emailFrom = ctx.env.EMAIL_FROM ?? "noreply@crazp.dev";
   const trustedOrigins = parseTrustedOrigins(
@@ -250,40 +249,12 @@ async function authBuilder(ctx: CloudflareContext) {
 
 let authInstance: Awaited<ReturnType<typeof authBuilder>> | null = null;
 
-export async function initAuth(ctx: CloudflareContext) {
+export function initAuth(ctx: CloudflareContext) {
   if (!authInstance) {
-    authInstance = await authBuilder(ctx);
+    authInstance = authBuilder(ctx);
   }
   return authInstance;
 }
-
-/** CLI / schema generation stub — keep plugins in sync with authBuilder. */
-export const auth = betterAuth({
-  ...withCloudflare(
-    {
-      autoDetectIpAddress: true,
-      geolocationTracking: true,
-      cf: {},
-    },
-    {
-      appName: "crazp",
-      emailAndPassword: {
-        enabled: true,
-        requireEmailVerification: true,
-      },
-      plugins: [
-        organization({
-          allowUserToCreateOrganization: true,
-        }),
-        nextCookies(),
-      ],
-    }
-  ),
-  database: drizzleAdapter({} as D1Database, {
-    provider: "sqlite",
-    usePlural: true,
-  }),
-});
 
 export type Auth = Awaited<ReturnType<typeof initAuth>>;
 export type Session = Auth["$Infer"]["Session"];
