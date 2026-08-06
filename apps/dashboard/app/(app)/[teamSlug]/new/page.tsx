@@ -1,13 +1,12 @@
 import { notFound } from "next/navigation";
-import { AgentsDashboard } from "@/components/agents-dashboard";
-import { listOrganizationAgents } from "@/lib/agents";
+import { CreateAgentForm } from "@/components/create-agent-form";
 import {
   findOrganizationBySlug,
   listUserOrganizations,
 } from "@/lib/organization";
 import { requireSession } from "@/lib/session";
 
-export default async function TeamHomePage({
+export default async function NewAgentPage({
   params,
 }: {
   params: Promise<{ teamSlug: string }>;
@@ -23,7 +22,5 @@ export default async function TeamHomePage({
     notFound();
   }
 
-  const agents = await listOrganizationAgents(organization.id);
-
-  return <AgentsDashboard agents={agents} teamSlug={teamSlug} />;
+  return <CreateAgentForm teamSlug={teamSlug} />;
 }

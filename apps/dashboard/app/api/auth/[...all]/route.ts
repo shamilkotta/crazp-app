@@ -2,7 +2,7 @@ import { getAuth } from "@/lib/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 
 async function getHandler() {
-  const auth = await getAuth();
+  const auth = getAuth();
   return toNextJsHandler(auth);
 }
 

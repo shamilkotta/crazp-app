@@ -22,6 +22,14 @@
       "id": "00000000-0000-0000-0000-000000000002",
     },
   ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "AGENT_DEPLOYMENT_QUEUE",
+        "queue": "crazp-agent-deployments",
+      },
+    ],
+  },
   "send_email": [
     {
       "name": "EMAIL",

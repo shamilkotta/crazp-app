@@ -8,20 +8,46 @@ import {
   OrganizationSwitcher,
   type OrganizationOption,
 } from "@/components/organization-switcher";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
+import { Session } from "@workspace/auth";
+
+function userInitials(name?: string | null, email?: string | null) {
+  const source = name?.trim() || email?.trim() || "?";
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0]![0]}${parts[1]![0]}`.toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+}
 
 export function DashboardHeader({
   organizations,
-  activeOrganizationId,
-  userName,
+  session,
 }: {
   organizations: OrganizationOption[];
-  activeOrganizationId?: string | null;
-  userName?: string | null;
+  session: Session;
 }) {
   const router = useRouter();
   const params = useParams<{ teamSlug?: string }>();
   const teamSlug = typeof params.teamSlug === "string" ? params.teamSlug : null;
+  const {
+    user: { name: userName, email: userEmail, image: userImage },
+    session: { activeOrganizationId },
+  } = session;
 
   const homeHref =
     teamSlug ??
@@ -59,17 +85,43 @@ export function DashboardHeader({
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
-          {userName ? (
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              {userName}
-            </span>
-          ) : null}
-          <Button variant="outline" size="sm" onClick={handleSignOut}>
-            <LogOut data-icon="inline-start" />
-            Sign out
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" size="icon" className="rounded-full" />
+            }
+          >
+            <Avatar>
+              {userImage ? (
+                <AvatarImage src={userImage} alt={userName ?? "User"} />
+              ) : null}
+              <AvatarFallback>
+                {userInitials(userName, userEmail)}
+              </AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-56">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col gap-0.5">
+                  <span className="truncate text-sm font-medium text-foreground">
+                    {userName || "Account"}
+                  </span>
+                  {userEmail ? (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {userEmail}
+                    </span>
+                  ) : null}
+                </div>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSignOut}>
+              <LogOut />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

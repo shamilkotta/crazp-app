@@ -15,9 +15,13 @@ import { Input } from "@workspace/ui/components/input";
 
 type AuthMode = "signin" | "signup";
 
+const _getUrlWithCallback = (url: string, callbackURL?: string) => {
+  return callbackURL ? `${url}?next=${encodeURIComponent(callbackURL)}` : url;
+};
+
 export function AuthForm({
   mode,
-  callbackURL = "/",
+  callbackURL,
 }: {
   mode: AuthMode;
   callbackURL?: string;
@@ -43,7 +47,7 @@ export function AuthForm({
           name,
           email,
           password,
-          callbackURL: `${window.location.origin}/`,
+          callbackURL: callbackURL ?? "/",
         });
 
         if (signUpError) {
@@ -61,16 +65,13 @@ export function AuthForm({
       const { error: signInError } = await authClient.signIn.email({
         email,
         password,
-        callbackURL: `${window.location.origin}${callbackURL}`,
+        callbackURL: callbackURL ?? "/",
       });
 
       if (signInError) {
         setError(signInError.message ?? "Invalid email or password.");
         return;
       }
-
-      router.push(callbackURL);
-      router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -176,7 +177,11 @@ export function AuthForm({
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
           <Link
-            href={isSignup ? "/sign-in" : "/sign-up"}
+            href={
+              isSignup
+                ? _getUrlWithCallback("/sign-in", callbackURL)
+                : _getUrlWithCallback("/sign-up", callbackURL)
+            }
             className="text-foreground underline underline-offset-4 transition-colors hover:text-foreground/80"
           >
             {isSignup ? "Sign in" : "Sign up"}

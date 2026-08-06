@@ -1,15 +1,19 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useFormStatus } from "react-dom";
 import {
   Activity,
   ArrowLeft,
   Bot,
   Cable,
-  Cpu,
   FileText,
   Settings,
   Terminal,
 } from "lucide-react";
+import { deployAgent } from "@/lib/actions/agents";
+import type { AgentListItem } from "@/lib/agents";
+import { formatRelativeTime } from "@/lib/format";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -20,8 +24,7 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card";
 import { Separator } from "@workspace/ui/components/separator";
-import { getAgent } from "@/lib/mock-data";
-import { formatRelativeTime } from "@/lib/format";
+import { Spinner } from "@workspace/ui/components/spinner";
 
 const tabs = [
   { id: "overview", label: "Overview", icon: Activity },
@@ -31,15 +34,28 @@ const tabs = [
   { id: "prompts", label: "Prompts", icon: FileText },
 ];
 
+function DeploySubmitButton({ isDeploying }: { isDeploying: boolean }) {
+  const { pending } = useFormStatus();
+  const busy = pending || isDeploying;
+
+  return (
+    <Button size="sm" type="submit" disabled={busy}>
+      {pending ? <Spinner data-icon="inline-start" /> : null}
+      {busy ? "Deploying..." : "Deploy"}
+    </Button>
+  );
+}
+
 export function AgentDetailPage({
-  agentId,
+  agent,
   dashboardPath,
+  teamSlug,
 }: {
-  agentId: string;
+  agent: AgentListItem;
   dashboardPath: string;
+  teamSlug: string;
 }) {
-  const agent = getAgent(agentId);
-  if (!agent) notFound();
+  const isDeploying = agent.status === "deploying";
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -47,17 +63,17 @@ export function AgentDetailPage({
         <Button
           variant="ghost"
           size="sm"
-          className="mb-4 -ml-2"
+          className="-ms-2 mb-4"
           render={<Link href={dashboardPath} />}
           nativeButton={false}
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft data-icon="inline-start" />
           All agents
         </Button>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border bg-muted/50">
-              <Bot className="h-6 w-6" />
+            <div className="flex size-12 items-center justify-center rounded-xl border bg-muted/50">
+              <Bot className="size-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -69,16 +85,22 @@ export function AgentDetailPage({
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                {agent.slug}.crazp.dev · Last run{" "}
-                {formatRelativeTime(agent.lastRunAt)}
+                {agent.slug}.crazp.dev
+                {agent.lastRunAt
+                  ? ` · Last run ${formatRelativeTime(agent.lastRunAt)}`
+                  : " · Not deployed yet"}
               </p>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" disabled>
               Pause
             </Button>
-            <Button size="sm">Deploy</Button>
+            <form action={deployAgent}>
+              <input type="hidden" name="teamSlug" value={teamSlug} />
+              <input type="hidden" name="agentId" value={agent.id} />
+              <DeploySubmitButton isDeploying={isDeploying} />
+            </form>
           </div>
         </div>
       </div>
@@ -94,79 +116,57 @@ export function AgentDetailPage({
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            <tab.icon className="h-4 w-4" />
+            <tab.icon className="size-4" />
             {tab.label}
           </button>
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div className="flex flex-col gap-6 lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Overview</CardTitle>
-              <CardDescription>{agent.description}</CardDescription>
+              <CardDescription>
+                Draft agent — deploy when you&apos;re ready to run it.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-3">
+            <CardContent className="grid gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-xs text-muted-foreground">Model</p>
                 <p className="mt-1 font-medium">{agent.model}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Provider</p>
-                <p className="mt-1 font-medium">{agent.provider}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Runs today</p>
-                <p className="mt-1 font-medium">{agent.runsToday}</p>
+                <p className="text-xs text-muted-foreground">Status</p>
+                <p className="mt-1 font-medium capitalize">{agent.status}</p>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Recent activity</CardTitle>
+              <CardTitle className="text-base">Instructions</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                "Processed 24 support tickets",
-                "Updated knowledge base embeddings",
-                "Rate limit threshold at 78%",
-              ].map((event) => (
-                <div key={event} className="flex items-center gap-3 text-sm">
-                  <Cpu className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span>{event}</span>
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    2h ago
-                  </span>
-                </div>
-              ))}
+            <CardContent>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                {agent.instructions || "No instructions yet."}
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Integrations</CardTitle>
             </CardHeader>
             <CardContent>
-              {agent.integrations.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {agent.integrations.map((integration) => (
-                    <Badge key={integration} variant="secondary">
-                      {integration}
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No integrations connected
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                No integrations connected
+              </p>
               <Separator className="my-4" />
-              <Button variant="outline" size="sm" className="w-full">
-                <Cable className="h-4 w-4" />
+              <Button variant="outline" size="sm" className="w-full" disabled>
+                <Cable data-icon="inline-start" />
                 Connect provider
               </Button>
             </CardContent>
@@ -176,29 +176,32 @@ export function AgentDetailPage({
             <CardHeader>
               <CardTitle className="text-base">Quick actions</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="flex flex-col gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full justify-start"
+                disabled
               >
-                <Settings className="h-4 w-4" />
+                <Settings data-icon="inline-start" />
                 Edit configuration
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full justify-start"
+                disabled
               >
-                <Terminal className="h-4 w-4" />
+                <Terminal data-icon="inline-start" />
                 View logs
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="w-full justify-start"
+                disabled
               >
-                <FileText className="h-4 w-4" />
+                <FileText data-icon="inline-start" />
                 Edit system prompt
               </Button>
             </CardContent>

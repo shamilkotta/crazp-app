@@ -8,7 +8,7 @@ export type OrganizationSummary = {
 };
 
 export async function listUserOrganizations(): Promise<OrganizationSummary[]> {
-  const auth = await getAuth();
+  const auth = getAuth();
 
   try {
     const listed = await auth.api.listOrganizations({

@@ -14,11 +14,7 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <DashboardHeader
-        organizations={organizations}
-        activeOrganizationId={session.session.activeOrganizationId}
-        userName={session.user.name}
-      />
+      <DashboardHeader organizations={organizations} session={session} />
       {children}
     </div>
   );
