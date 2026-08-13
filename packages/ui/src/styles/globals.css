@@ -134,6 +134,9 @@
     @apply font-sans;
     color-scheme: light dark;
   }
+  html.light {
+    color-scheme: light;
+  }
   html.dark {
     color-scheme: dark;
   }

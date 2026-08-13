@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
-import { AgentDetailPage } from "@/components/agent-detail";
+import { AgentChrome } from "@/components/board/agent-chrome";
 import { getOrganizationAgent } from "@/lib/agents";
 import { requireTeam } from "@/lib/team";
 
-export default async function AgentPage({
+export default async function AgentLayout({
+  children,
   params,
 }: {
+  children: React.ReactNode;
   params: Promise<{ teamSlug: string; id: string }>;
 }) {
   const { teamSlug, id } = await params;
@@ -15,5 +17,10 @@ export default async function AgentPage({
     notFound();
   }
 
-  return <AgentDetailPage agent={agent} teamSlug={teamSlug} />;
+  return (
+    <>
+      <AgentChrome teamSlug={teamSlug} agent={agent} />
+      {children}
+    </>
+  );
 }

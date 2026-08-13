@@ -236,6 +236,119 @@ export const agentSkillResources = sqliteTable(
   ]
 );
 
+export const agentChannels = sqliteTable(
+  "agent_channels",
+  {
+    id: text("id").primaryKey(),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    provider: text("provider", {
+      enum: ["slack", "whatsapp", "telegram", "discord", "web", "email"],
+    }).notNull(),
+    displayName: text("display_name").notNull(),
+    configJson: text("config_json", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    createdAt: timestamp("created_at"),
+    updatedAt: updatedTimestamp("updated_at"),
+  },
+  (table) => [
+    uniqueIndex("agent_channels_agent_provider_name_idx").on(
+      table.agentId,
+      table.provider,
+      table.displayName
+    ),
+    index("agent_channels_agent_idx").on(table.agentId),
+  ]
+);
+
+export const agentConnections = sqliteTable(
+  "agent_connections",
+  {
+    id: text("id").primaryKey(),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    displayName: text("display_name").notNull(),
+    authType: text("auth_type", {
+      enum: ["api_key", "oauth", "webhook", "service_account"],
+    }).notNull(),
+    scopes: text("scopes"),
+    configJson: text("config_json", { mode: "json" })
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    createdAt: timestamp("created_at"),
+    updatedAt: updatedTimestamp("updated_at"),
+  },
+  (table) => [
+    uniqueIndex("agent_connections_agent_provider_name_idx").on(
+      table.agentId,
+      table.provider,
+      table.displayName
+    ),
+    index("agent_connections_agent_idx").on(table.agentId),
+  ]
+);
+
+export const agentScheduledTasks = sqliteTable(
+  "agent_scheduled_tasks",
+  {
+    id: text("id").primaryKey(),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    schedule: text("schedule").notNull(),
+    prompt: text("prompt").notNull().default(""),
+    timezone: text("timezone").notNull().default("UTC"),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    lastRunAt: integer("last_run_at", { mode: "timestamp_ms" }),
+    createdAt: timestamp("created_at"),
+    updatedAt: updatedTimestamp("updated_at"),
+  },
+  (table) => [
+    uniqueIndex("agent_scheduled_tasks_agent_name_idx").on(
+      table.agentId,
+      table.name
+    ),
+    index("agent_scheduled_tasks_agent_idx").on(table.agentId),
+  ]
+);
+
+export const agentWorkflowTasks = sqliteTable(
+  "agent_workflow_tasks",
+  {
+    id: text("id").primaryKey(),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    trigger: text("trigger", {
+      enum: ["manual", "schedule", "webhook", "channel_event"],
+    }).notNull(),
+    stepsJson: text("steps_json", { mode: "json" })
+      .$type<Array<{ title: string; instruction: string }>>()
+      .notNull()
+      .default([]),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    createdAt: timestamp("created_at"),
+    updatedAt: updatedTimestamp("updated_at"),
+  },
+  (table) => [
+    uniqueIndex("agent_workflow_tasks_agent_name_idx").on(
+      table.agentId,
+      table.name
+    ),
+    index("agent_workflow_tasks_agent_idx").on(table.agentId),
+  ]
+);
+
 export const agentDeployments = sqliteTable(
   "agent_deployments",
   {
@@ -327,6 +440,10 @@ export const agentsRelations = relations(agents, ({ many, one }) => ({
   tools: many(agentTools),
   subagents: many(agentSubagents),
   skills: many(agentSkills),
+  channels: many(agentChannels),
+  connections: many(agentConnections),
+  scheduledTasks: many(agentScheduledTasks),
+  workflowTasks: many(agentWorkflowTasks),
   deployments: many(agentDeployments),
 }));
 
@@ -376,6 +493,43 @@ export const agentSkillResourcesRelations = relations(
   })
 );
 
+export const agentChannelsRelations = relations(agentChannels, ({ one }) => ({
+  agent: one(agents, {
+    fields: [agentChannels.agentId],
+    references: [agents.id],
+  }),
+}));
+
+export const agentConnectionsRelations = relations(
+  agentConnections,
+  ({ one }) => ({
+    agent: one(agents, {
+      fields: [agentConnections.agentId],
+      references: [agents.id],
+    }),
+  })
+);
+
+export const agentScheduledTasksRelations = relations(
+  agentScheduledTasks,
+  ({ one }) => ({
+    agent: one(agents, {
+      fields: [agentScheduledTasks.agentId],
+      references: [agents.id],
+    }),
+  })
+);
+
+export const agentWorkflowTasksRelations = relations(
+  agentWorkflowTasks,
+  ({ one }) => ({
+    agent: one(agents, {
+      fields: [agentWorkflowTasks.agentId],
+      references: [agents.id],
+    }),
+  })
+);
+
 export const agentDeploymentsRelations = relations(
   agentDeployments,
   ({ many, one }) => ({
@@ -409,6 +563,14 @@ export type AgentSkill = typeof agentSkills.$inferSelect;
 export type NewAgentSkill = typeof agentSkills.$inferInsert;
 export type AgentSkillResource = typeof agentSkillResources.$inferSelect;
 export type NewAgentSkillResource = typeof agentSkillResources.$inferInsert;
+export type AgentChannel = typeof agentChannels.$inferSelect;
+export type NewAgentChannel = typeof agentChannels.$inferInsert;
+export type AgentConnection = typeof agentConnections.$inferSelect;
+export type NewAgentConnection = typeof agentConnections.$inferInsert;
+export type AgentScheduledTask = typeof agentScheduledTasks.$inferSelect;
+export type NewAgentScheduledTask = typeof agentScheduledTasks.$inferInsert;
+export type AgentWorkflowTask = typeof agentWorkflowTasks.$inferSelect;
+export type NewAgentWorkflowTask = typeof agentWorkflowTasks.$inferInsert;
 export type AgentDeployment = typeof agentDeployments.$inferSelect;
 export type NewAgentDeployment = typeof agentDeployments.$inferInsert;
 export type AgentDeploymentEvent = typeof agentDeploymentEvents.$inferSelect;

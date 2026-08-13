@@ -1,220 +1,189 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+
 import { createAgent } from "@/lib/actions/agents";
-import { Button } from "@workspace/ui/components/button";
+import { slugifyAgentName } from "@/lib/agents";
+import { templates } from "@/lib/catalog";
 import {
   Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@workspace/ui/components/field";
-import { Input } from "@workspace/ui/components/input";
-import { Spinner } from "@workspace/ui/components/spinner";
-import { Textarea } from "@workspace/ui/components/textarea";
-
-type Step = "name" | "instructions";
+  GhostButton,
+  PrimaryButton,
+  Surface,
+  inputClass,
+  textareaClass,
+} from "@/components/board/ui";
+import { cn } from "@workspace/ui/lib/utils";
 
 export function CreateAgentForm({ teamSlug }: { teamSlug: string }) {
   const router = useRouter();
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  const instructionsInputRef = useRef<HTMLTextAreaElement>(null);
-  const [step, setStep] = useState<Step>("name");
+  const searchParams = useSearchParams();
+  const fromTemplate = searchParams.get("from") === "template";
+  const [template, setTemplate] = useState<string>(
+    fromTemplate ? (templates[0]?.slug ?? "blank") : "blank"
+  );
   const [name, setName] = useState("");
   const [instructions, setInstructions] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [pending, startTransition] = useTransition();
 
-  const agentsPath = `/${teamSlug}`;
+  const slug = useMemo(() => slugifyAgentName(name || "agent"), [name]);
+  const selected = templates.find((item) => item.slug === template);
 
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      if (step === "name") {
-        nameInputRef.current?.focus();
-      } else {
-        instructionsInputRef.current?.focus();
-      }
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [step]);
-
-  function continueToInstructions() {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setError("Give your agent a name to continue.");
-      return;
-    }
-    setError(null);
-    setStep("instructions");
+  function applyTemplate(slugValue: string) {
+    setTemplate(slugValue);
+    const item = templates.find((entry) => entry.slug === slugValue);
+    if (!item) return;
+    if (!name) setName(item.name);
+    if (!instructions) setInstructions(item.description);
   }
 
-  async function handleCreate() {
+  function handleCreate() {
+    const trimmedName = name.trim();
     const trimmedInstructions = instructions.trim();
+    if (!trimmedName) {
+      setError("Give the agent a name.");
+      return;
+    }
     if (!trimmedInstructions) {
-      setError("Add instructions so your agent knows what to do.");
+      setError("Add instructions so the agent knows what to do.");
       return;
     }
 
     setError(null);
-    setPending(true);
-
-    try {
+    startTransition(async () => {
       const result = await createAgent({
         teamSlug,
-        name,
-        instructions,
+        name: trimmedName,
+        instructions: trimmedInstructions,
       });
-
       if (!result.ok) {
         setError(result.error);
-        setPending(false);
         return;
       }
-
-      router.push(agentsPath);
+      router.push(`/${teamSlug}/agents/${result.agent.id}`);
       router.refresh();
-    } catch {
-      setError("Something went wrong. Please try again.");
-      setPending(false);
-    }
+    });
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ms-2 mb-6"
-        render={<Link href={agentsPath} />}
-        nativeButton={false}
-        disabled={pending}
-      >
-        <ArrowLeft data-icon="inline-start" />
-        All agents
-      </Button>
-
-      {step === "name" ? (
-        <div className="flex flex-col gap-8">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Create agent
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Start with a name. You can refine everything after it&apos;s
-              created.
-            </p>
-          </div>
-
-          <form
-            className="flex flex-col gap-6"
-            onSubmit={(event) => {
-              event.preventDefault();
-              continueToInstructions();
-            }}
+    <div className="mx-auto grid max-w-4xl gap-6 lg:grid-cols-[1fr_280px] lg:gap-8">
+      <div>
+        <p className="mb-3 text-[12px] font-medium text-muted-foreground">
+          Start from
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setTemplate("blank")}
+            className={cn(
+              "rounded-xl border p-4 text-left",
+              template === "blank"
+                ? "border-foreground/30 bg-muted/50"
+                : "border-border hover:bg-muted/40"
+            )}
           >
-            <FieldGroup>
-              <Field data-invalid={error ? true : undefined}>
-                <FieldLabel htmlFor="agent-name">Name</FieldLabel>
-                <Input
-                  ref={nameInputRef}
-                  id="agent-name"
-                  value={name}
-                  onChange={(event) => {
-                    setName(event.target.value);
-                    if (error) setError(null);
-                  }}
-                  placeholder="Customer support"
-                  maxLength={80}
-                  aria-invalid={error ? true : undefined}
-                  autoComplete="off"
-                />
-                  <FieldDescription>
-                    This is who the agent is.
-                  </FieldDescription>
-                {error ? <FieldError>{error}</FieldError> : null}
-              </Field>
-            </FieldGroup>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                render={<Link href={agentsPath} />}
-                nativeButton={false}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">Continue</Button>
-            </div>
-          </form>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-8">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Instructions for {name.trim()}
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Tell the agent who it is, what it should do, and how it should
-              respond.
+            <p className="font-medium">Blank agent</p>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Name it, write instructions, add capabilities later.
             </p>
-          </div>
-
-          <form
-            className="flex flex-col gap-6"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleCreate();
-            }}
-          >
-            <FieldGroup>
-              <Field data-invalid={error ? true : undefined}>
-                <FieldLabel htmlFor="agent-instructions">
-                  Instructions
-                </FieldLabel>
-                <Textarea
-                  ref={instructionsInputRef}
-                  id="agent-instructions"
-                  value={instructions}
-                  onChange={(event) => {
-                    setInstructions(event.target.value);
-                    if (error) setError(null);
-                  }}
-                  placeholder="You are a helpful support agent. Answer questions using the knowledge base, stay concise, and escalate billing issues."
-                  className="min-h-72 resize-y text-base md:text-base"
-                  aria-invalid={error ? true : undefined}
-                  disabled={pending}
-                />
-                {error ? <FieldError>{error}</FieldError> : null}
-              </Field>
-            </FieldGroup>
-
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setError(null);
-                  setStep("name");
-                }}
-                disabled={pending}
-              >
-                <ArrowLeft data-icon="inline-start" />
-                Back
-              </Button>
-              <Button type="submit" disabled={pending}>
-                {pending ? <Spinner data-icon="inline-start" /> : null}
-                {pending ? "Creating…" : "Create agent"}
-              </Button>
-            </div>
-          </form>
+          </button>
+          {templates.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => applyTemplate(item.slug)}
+              className={cn(
+                "rounded-xl border p-4 text-left",
+                template === item.slug
+                  ? "border-foreground/30 bg-muted/50"
+                  : "border-border hover:bg-muted/40"
+              )}
+            >
+              <p className="font-medium">{item.name}</p>
+              <p className="mt-1 line-clamp-2 text-[12px] text-muted-foreground">
+                {item.summary}
+              </p>
+            </button>
+          ))}
         </div>
-      )}
-    </main>
+
+        <div className="mt-8 flex flex-col gap-4">
+          <Field label="Name">
+            <input
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="Support Triage"
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            label="Instructions"
+            hint="This is what the agent actually is. Be specific about what it should and should not do."
+          >
+            <textarea
+              value={instructions}
+              onChange={(event) => {
+                setInstructions(event.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="Read every inbound support message…"
+              className={cn(textareaClass, "min-h-36")}
+            />
+          </Field>
+          {error ? (
+            <p className="text-[12px] text-red-600 dark:text-red-400">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <PrimaryButton
+              disabled={!name.trim() || pending}
+              onClick={handleCreate}
+            >
+              {pending ? "Creating…" : "Create draft"}
+            </PrimaryButton>
+            <Link href={`/${teamSlug}`}>
+              <GhostButton>Cancel</GhostButton>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <aside className="flex flex-col gap-3 text-[12px] text-muted-foreground">
+        <Surface className="p-5">
+          <p className="font-medium text-foreground">Will be created as</p>
+          <p className="mt-2">{slug}.crazp.dev</p>
+          <p className="mt-1">Status: draft · not reachable yet</p>
+        </Surface>
+        {selected ? (
+          <Surface className="p-5">
+            <p className="font-medium text-foreground">
+              This template includes
+            </p>
+            <ul className="mt-2 list-disc pl-4">
+              {selected.includes?.map((line) => (
+                <li key={line} className="mt-1">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </Surface>
+        ) : (
+          <Surface className="p-5">
+            <p className="font-medium text-foreground">After this</p>
+            <p className="mt-2">
+              Add tools and a channel from the catalog, then deploy. The agent
+              stays a draft until you do.
+            </p>
+          </Surface>
+        )}
+      </aside>
+    </div>
   );
 }

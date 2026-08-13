@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
-import { AgentDetailPage } from "@/components/agent-detail";
+import { DistributeView } from "@/components/distribute-view";
 import { getOrganizationAgent } from "@/lib/agents";
 import { requireTeam } from "@/lib/team";
 
-export default async function AgentPage({
+export default async function AgentDistributePage({
   params,
 }: {
   params: Promise<{ teamSlug: string; id: string }>;
@@ -14,6 +14,5 @@ export default async function AgentPage({
   if (!agent) {
     notFound();
   }
-
-  return <AgentDetailPage agent={agent} teamSlug={teamSlug} />;
+  return <DistributeView agent={agent} />;
 }

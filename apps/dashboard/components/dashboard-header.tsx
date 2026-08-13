@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Bot, LogOut } from "lucide-react";
+import { Bot, Command, LogOut, Sparkles } from "lucide-react";
 import { authClient } from "@workspace/auth/client";
 import {
   OrganizationSwitcher,
@@ -42,8 +42,9 @@ export function DashboardHeader({
   session: Session;
 }) {
   const router = useRouter();
-  const params = useParams<{ teamSlug?: string }>();
+  const params = useParams<{ id?: string; teamSlug?: string }>();
   const teamSlug = typeof params.teamSlug === "string" ? params.teamSlug : null;
+  const isAgentDetailPage = typeof params.id === "string";
   const {
     user: { name: userName, email: userEmail, image: userImage },
     session: { activeOrganizationId },
@@ -61,21 +62,25 @@ export function DashboardHeader({
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-50 border-b bg-background/75 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
           <Link
             href={homeHref ? `/${homeHref}` : "/"}
-            className="flex items-center gap-2 font-semibold"
+            className="group flex items-center gap-2.5 font-semibold"
           >
-            <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform group-hover:scale-95">
               <Bot />
             </div>
-            <span>crazp</span>
+            <div className="hidden leading-tight sm:block">
+              <span className="block">crazp</span>
+              <span className="block text-[10px] font-normal tracking-wider text-muted-foreground uppercase">
+                Agent Cloud
+              </span>
+            </div>
           </Link>
-          {organizations.length > 0 ? (
+          {organizations.length > 0 && !isAgentDetailPage ? (
             <>
-              <span className="hidden text-muted-foreground sm:inline">/</span>
               <OrganizationSwitcher
                 organizations={organizations}
                 activeOrganizationId={activeOrganizationId}
@@ -85,43 +90,59 @@ export function DashboardHeader({
           ) : null}
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="ghost" size="icon" className="rounded-full" />
-            }
-          >
-            <Avatar>
-              {userImage ? (
-                <AvatarImage src={userImage} alt={userName ?? "User"} />
-              ) : null}
-              <AvatarFallback>
-                {userInitials(userName, userEmail)}
-              </AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-56">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col gap-0.5">
-                  <span className="truncate text-sm font-medium text-foreground">
-                    {userName || "Account"}
-                  </span>
-                  {userEmail ? (
-                    <span className="truncate text-xs text-muted-foreground">
-                      {userEmail}
+        <div className="hidden min-w-0 flex-1 items-center justify-center lg:flex">
+          <div className="flex h-9 w-full max-w-md items-center gap-2 rounded-full border bg-card/80 px-3 text-sm text-muted-foreground shadow-sm">
+            <Command />
+            <span className="truncate">Search agents, tools, skills...</span>
+            <span className="ms-auto rounded-md border px-1.5 py-0.5 font-mono text-[10px]">
+              ⌘K
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex">
+            <Sparkles data-icon="inline-start" />
+            Marketplace
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon" className="rounded-full" />
+              }
+            >
+              <Avatar>
+                {userImage ? (
+                  <AvatarImage src={userImage} alt={userName ?? "User"} />
+                ) : null}
+                <AvatarFallback>
+                  {userInitials(userName, userEmail)}
+                </AvatarFallback>
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-56">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {userName || "Account"}
                     </span>
-                  ) : null}
-                </div>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut}>
-              <LogOut />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                    {userEmail ? (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {userEmail}
+                      </span>
+                    ) : null}
+                  </div>
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   );

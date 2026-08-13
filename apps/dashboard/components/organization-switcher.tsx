@@ -69,9 +69,9 @@ export function OrganizationSwitcher({
       <DropdownMenuTrigger
         render={
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="max-w-48 gap-1.5 px-2 text-muted-foreground"
+            className="max-w-56 rounded-full bg-card/70 px-3 text-muted-foreground shadow-sm"
             disabled={pending}
           />
         }

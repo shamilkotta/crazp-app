@@ -1,10 +1,6 @@
-import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { CreateAgentForm } from "@/components/create-agent-form";
-import {
-  findOrganizationBySlug,
-  listUserOrganizations,
-} from "@/lib/organization";
-import { requireSession } from "@/lib/session";
+import { requireTeam } from "@/lib/team";
 
 export default async function NewAgentPage({
   params,
@@ -12,15 +8,11 @@ export default async function NewAgentPage({
   params: Promise<{ teamSlug: string }>;
 }) {
   const { teamSlug } = await params;
-  const [, organizations] = await Promise.all([
-    requireSession(),
-    listUserOrganizations(),
-  ]);
-  const organization = findOrganizationBySlug(organizations, teamSlug);
+  await requireTeam(teamSlug);
 
-  if (!organization) {
-    notFound();
-  }
-
-  return <CreateAgentForm teamSlug={teamSlug} />;
+  return (
+    <Suspense>
+      <CreateAgentForm teamSlug={teamSlug} />
+    </Suspense>
+  );
 }

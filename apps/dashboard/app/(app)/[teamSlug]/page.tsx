@@ -1,11 +1,6 @@
-import { notFound } from "next/navigation";
 import { AgentsDashboard } from "@/components/agents-dashboard";
 import { listOrganizationAgents } from "@/lib/agents";
-import {
-  findOrganizationBySlug,
-  listUserOrganizations,
-} from "@/lib/organization";
-import { requireSession } from "@/lib/session";
+import { requireTeam } from "@/lib/team";
 
 export default async function TeamHomePage({
   params,
@@ -13,16 +8,7 @@ export default async function TeamHomePage({
   params: Promise<{ teamSlug: string }>;
 }) {
   const { teamSlug } = await params;
-  const [, organizations] = await Promise.all([
-    requireSession(),
-    listUserOrganizations(),
-  ]);
-  const organization = findOrganizationBySlug(organizations, teamSlug);
-
-  if (!organization) {
-    notFound();
-  }
-
+  const { organization } = await requireTeam(teamSlug);
   const agents = await listOrganizationAgents(organization.id);
 
   return <AgentsDashboard agents={agents} teamSlug={teamSlug} />;
