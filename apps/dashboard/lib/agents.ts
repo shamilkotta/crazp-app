@@ -159,14 +159,14 @@ export async function listOrganizationAgents(
 
 export async function getOrganizationAgent(
   organizationId: string,
-  agentId: string
+  agentSlug: string
 ): Promise<AgentDetailData | null> {
   const db = getDb();
   const [agent] = await db
     .select(agentListColumns)
     .from(agents)
     .where(
-      and(eq(agents.organizationId, organizationId), eq(agents.id, agentId))
+      and(eq(agents.organizationId, organizationId), eq(agents.slug, agentSlug))
     )
     .limit(1);
 

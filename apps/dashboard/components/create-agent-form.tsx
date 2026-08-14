@@ -63,7 +63,7 @@ export function CreateAgentForm({ teamSlug }: { teamSlug: string }) {
         setError(result.error);
         return;
       }
-      router.push(`/${teamSlug}/agents/${result.agent.id}`);
+      router.push(`/${teamSlug}/agents/${result.agent.slug}`);
       router.refresh();
     });
   }

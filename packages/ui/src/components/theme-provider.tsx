@@ -13,7 +13,8 @@ export function ThemeProvider({
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange
-      storageKey="crazp-theme"
+      enableColorScheme
+      storageKey="crazp-color-scheme"
       {...props}
     >
       {children}

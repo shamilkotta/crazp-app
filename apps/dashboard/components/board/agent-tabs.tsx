@@ -4,6 +4,8 @@ import type { AgentDetailData } from "@/lib/agents";
 import { describeCron, shortModel } from "@/lib/display";
 import { ResourceList } from "@/components/board/agent-resources";
 
+export { SkillsTab } from "@/components/board/skills-tab";
+
 type ResourceKind =
   | "tool"
   | "skill"
@@ -46,44 +48,6 @@ export function ToolsTab({
       }))}
       onToggle={(id) => onToggle("tool", id)}
       onDelete={(id) => onDelete("tool", id)}
-      onCreate={onCreate}
-    />
-  );
-}
-
-export function SkillsTab({
-  agent,
-  teamSlug,
-  pending,
-  onToggle,
-  onDelete,
-  onCreate,
-}: {
-  agent: AgentDetailData;
-  teamSlug: string;
-  pending: boolean;
-  onToggle: (type: ResourceKind, id: string) => void;
-  onDelete: (type: ResourceKind, id: string) => void;
-  onCreate: (name: string) => void;
-}) {
-  return (
-    <ResourceList
-      title="Skills"
-      blurb="Written guidance the agent loads when it needs to think a certain way."
-      kind="skill"
-      empty="No skills yet. A tone-of-voice skill is usually the first one."
-      catalogHref={`/${teamSlug}/catalog`}
-      listingHref={(slug) => `/${teamSlug}/catalog/${slug}`}
-      pending={pending}
-      items={agent.skills.map((item) => ({
-        id: item.id,
-        title: item.name,
-        meta: item.allowedTools ?? "all tools",
-        body: item.description,
-        enabled: item.enabled,
-      }))}
-      onToggle={(id) => onToggle("skill", id)}
-      onDelete={(id) => onDelete("skill", id)}
       onCreate={onCreate}
     />
   );

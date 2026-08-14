@@ -58,7 +58,7 @@ function AlertCard({
             {agents.map((agent) => (
               <li key={agent.id}>
                 <Link
-                  href={`/${teamSlug}/agents/${agent.id}`}
+                  href={`/${teamSlug}/agents/${agent.slug}`}
                   className="flex items-center gap-2 hover:text-foreground"
                 >
                   <AgentMark name={agent.name} size={22} />

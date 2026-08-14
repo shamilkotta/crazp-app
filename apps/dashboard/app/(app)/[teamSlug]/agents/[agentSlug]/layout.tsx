@@ -8,11 +8,11 @@ export default async function AgentLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ teamSlug: string; id: string }>;
+  params: Promise<{ teamSlug: string; agentSlug: string }>;
 }) {
-  const { teamSlug, id } = await params;
+  const { teamSlug, agentSlug } = await params;
   const { organization } = await requireTeam(teamSlug);
-  const agent = await getOrganizationAgent(organization.id, id);
+  const agent = await getOrganizationAgent(organization.id, agentSlug);
   if (!agent) {
     notFound();
   }

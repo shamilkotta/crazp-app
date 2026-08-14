@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import Link from "next/link";
 
 import type { AgentDetailData } from "@/lib/agents";
 import {
@@ -9,15 +10,15 @@ import {
   shortModel,
   since,
 } from "@/lib/display";
-import type { AgentTab } from "@/components/board/agent-types";
-import { StatusLabel, Surface, TextButton } from "@/components/board/ui";
+import { agentTabHref, type AgentTab } from "@/components/board/agent-types";
+import { StatusLabel, Surface } from "@/components/board/ui";
 
 export function AgentOverview({
   agent,
-  onOpen,
+  teamSlug,
 }: {
   agent: AgentDetailData;
-  onOpen: (tab: AgentTab) => void;
+  teamSlug: string;
 }) {
   const url = agentPublicUrl(agent);
   const ready = completeness(agent);
@@ -81,9 +82,8 @@ export function AgentOverview({
                 : (cap.key as AgentTab);
             return (
               <li key={cap.key}>
-                <button
-                  type="button"
-                  onClick={() => onOpen(tabId)}
+                <Link
+                  href={agentTabHref(teamSlug, agent.slug, tabId)}
                   className="flex w-full items-center justify-between text-left text-[12px] hover:text-foreground"
                 >
                   <span
@@ -96,7 +96,7 @@ export function AgentOverview({
                   <span className="text-muted-foreground">
                     {count > 0 ? count : "Add"}
                   </span>
-                </button>
+                </Link>
               </li>
             );
           })}
@@ -110,9 +110,12 @@ export function AgentOverview({
         <p className="mt-2 max-w-[68ch] text-[13px] leading-relaxed text-muted-foreground">
           {agent.instructions || "No instructions yet."}
         </p>
-        <TextButton className="mt-3" onClick={() => onOpen("setup")}>
+        <Link
+          href={agentTabHref(teamSlug, agent.slug, "setup")}
+          className="mt-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+        >
           Edit setup
-        </TextButton>
+        </Link>
       </Surface>
     </div>
   );

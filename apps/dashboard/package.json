@@ -18,6 +18,8 @@
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.6.5",
+    "@uiw/react-markdown-preview": "^5.2.1",
+    "@uiw/react-md-editor": "^4.1.1",
     "@workspace/auth": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/ui": "workspace:*",

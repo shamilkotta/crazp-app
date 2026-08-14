@@ -18,6 +18,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import type { AgentListItem } from "@/lib/agents";
 import { slugifyTeamName, statusLabel } from "@/lib/display";
 import type { OrganizationSummary } from "@/lib/organization";
+import { AGENT_OVERVIEW_TABS } from "@/components/board/agent-types";
 import {
   AgentMark,
   PrimaryButton,
@@ -27,6 +28,9 @@ import {
   inputClass,
 } from "@/components/board/ui";
 
+const AGENT_OVERVIEW_SEGMENTS = new Set(
+  AGENT_OVERVIEW_TABS.filter((tab) => tab !== "overview")
+);
 export type ShellUser = {
   name: string;
   email: string;
@@ -64,7 +68,7 @@ export function AppShell({
   const agentMatch = pathname.match(/^\/[^/]+\/agents\/([^/]+)/);
   const area: "org" | "agent" = agentMatch ? "agent" : "org";
   const currentAgent =
-    agents.find((agent) => agent.id === agentMatch?.[1]) ?? null;
+    agents.find((agent) => agent.slug === agentMatch?.[1]) ?? null;
   const [createOpen, setCreateOpen] = useState(false);
 
   const orgNav = [
@@ -75,14 +79,17 @@ export function AppShell({
 
   const agentTabs = currentAgent
     ? [
-        { href: `/${teamSlug}/agents/${currentAgent.id}`, label: "Overview" },
-        { href: `/${teamSlug}/agents/${currentAgent.id}/runs`, label: "Runs" },
+        { href: `/${teamSlug}/agents/${currentAgent.slug}`, label: "Overview" },
         {
-          href: `/${teamSlug}/agents/${currentAgent.id}/playground`,
+          href: `/${teamSlug}/agents/${currentAgent.slug}/runs`,
+          label: "Runs",
+        },
+        {
+          href: `/${teamSlug}/agents/${currentAgent.slug}/playground`,
           label: "Playground",
         },
         {
-          href: `/${teamSlug}/agents/${currentAgent.id}/distribute`,
+          href: `/${teamSlug}/agents/${currentAgent.slug}/distribute`,
           label: "Distribute",
         },
       ]
@@ -92,16 +99,15 @@ export function AppShell({
     area === "agent" && currentAgent
       ? agentTabs.map((item) => ({
           ...item,
-          active: pathname === item.href,
+          active: agentNavActive(pathname, item.href, currentAgent.slug),
         }))
       : orgNav.map((item) => ({
           ...item,
           active: orgNavActive(pathname, item.href, teamSlug),
         }));
-
   return (
     <div className="flex min-h-dvh flex-col overflow-x-clip bg-background font-sans text-[13px] text-foreground">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
+      <header className="border-b border-border bg-background">
         <div className="flex h-12 min-w-0 items-center gap-2 px-3 sm:gap-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Link
@@ -162,9 +168,7 @@ export function AppShell({
         </nav>
       </header>
 
-      <main className="min-w-0 flex-1 px-3 py-5 sm:px-6 sm:py-6">
-        {children}
-      </main>
+      <main className="min-w-0 flex-1 px-3 pt-4 pb-3 sm:px-6">{children}</main>
 
       {createOpen ? (
         <CreateTeamDialog onClose={() => setCreateOpen(false)} />
@@ -190,6 +194,21 @@ function orgNavActive(pathname: string, href: string, teamSlug: string) {
     return pathname.startsWith(`/${teamSlug}/catalog`);
   }
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function agentNavActive(pathname: string, href: string, agentSlug: string) {
+  if (pathname === href) return true;
+
+  // Overview stays active on setup/tools/skills/… but not runs/playground/distribute.
+  const overviewBase = `/${pathname.split("/")[1]}/agents/${agentSlug}`;
+  if (href !== overviewBase) {
+    return pathname.startsWith(`${href}/`);
+  }
+
+  const segment = pathname.slice(overviewBase.length + 1).split("/")[0] ?? "";
+  return AGENT_OVERVIEW_SEGMENTS.has(
+    segment as (typeof AGENT_OVERVIEW_TABS)[number]
+  );
 }
 
 function TeamSwitcher({
@@ -304,7 +323,7 @@ function AgentSwitcher({
         {agents.map((agent) => (
           <DropdownMenuItem
             key={agent.id}
-            onClick={() => router.push(`/${teamSlug}/agents/${agent.id}`)}
+            onClick={() => router.push(`/${teamSlug}/agents/${agent.slug}`)}
             className="gap-2 py-1.5"
           >
             <AgentMark name={agent.name} size={22} />

@@ -61,7 +61,7 @@ export function ListingView({
         return;
       }
       if (result.kind === "agent") {
-        router.push(`/${teamSlug}/agents/${result.agentId}`);
+        router.push(`/${teamSlug}/agents/${result.agentSlug}`);
         router.refresh();
         return;
       }
@@ -120,7 +120,7 @@ export function ListingView({
               The agent can use this on the next deploy.
             </p>
             <div className="flex flex-wrap gap-2">
-              <Link href={`/${teamSlug}/agents/${agentId}`}>
+              <Link href={`/${teamSlug}/agents/${selectedAgent?.slug ?? ""}`}>
                 <PrimaryButton>Open agent</PrimaryButton>
               </Link>
               <GhostButton onClick={() => setInstalled(false)}>

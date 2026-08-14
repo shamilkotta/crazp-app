@@ -130,7 +130,11 @@ export async function installCatalogItem(input: {
       if (!created.ok) {
         return { kind: "error" as const, error: created.error };
       }
-      return { kind: "agent" as const, agentId: created.agent.id };
+      return {
+        kind: "agent" as const,
+        agentId: created.agent.id,
+        agentSlug: created.agent.slug,
+      };
     }
   }
 }

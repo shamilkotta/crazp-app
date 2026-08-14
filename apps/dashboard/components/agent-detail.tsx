@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
 import {
@@ -24,7 +25,7 @@ import {
   SubagentsTab,
   ToolsTab,
 } from "@/components/board/agent-tabs";
-import type { AgentTab } from "@/components/board/agent-types";
+import { agentTabHref, type AgentTab } from "@/components/board/agent-types";
 import {
   Field,
   PrimaryButton,
@@ -63,11 +64,12 @@ function fields(
 export function AgentDetailPage({
   agent,
   teamSlug,
+  tab,
 }: {
   agent: AgentDetailData;
   teamSlug: string;
+  tab: AgentTab;
 }) {
-  const [tab, setTab] = useState<AgentTab>("overview");
   const [name, setName] = useState(agent.name);
   const [instructions, setInstructions] = useState(agent.instructions);
   const [model, setModel] = useState(agent.model);
@@ -111,26 +113,27 @@ export function AgentDetailPage({
 
   return (
     <div>
-      <div className="scrollbar-none -mx-3 mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-border px-3 sm:-mx-6 sm:px-6">
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setTab(item.id)}
-            className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-[13px] whitespace-nowrap",
-              tab === item.id
-                ? "border-foreground font-medium"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="sticky top-0 z-20 -mt-4 mb-5 bg-background pt-3">
+        <div className="scrollbar-none flex gap-1 overflow-x-auto overflow-y-hidden border-b border-border">
+          {tabs.map((item) => (
+            <Link
+              key={item.id}
+              href={agentTabHref(teamSlug, agent.slug, item.id)}
+              className={cn(
+                "-mb-px border-b-2 px-3 py-2 text-[13px] whitespace-nowrap",
+                tab === item.id
+                  ? "border-foreground font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {tab === "overview" ? (
-        <AgentOverview agent={agent} onOpen={setTab} />
+        <AgentOverview agent={agent} teamSlug={teamSlug} />
       ) : null}
 
       {tab === "setup" ? (
@@ -230,10 +233,22 @@ export function AgentDetailPage({
           onDelete={(type, id) =>
             mutate(deleteAgentResource, { resourceType: type, resourceId: id })
           }
-          onCreate={(title) =>
+          onCreate={(draft) =>
             mutate(createAgentSkill, {
-              name: title,
-              description: "Custom skill",
+              name: draft.name,
+              description: draft.description,
+              body: draft.body,
+              allowedTools: draft.allowedTools ?? "",
+              license: draft.license ?? "",
+              compatibility: draft.compatibility ?? "",
+              resources: JSON.stringify(draft.resources ?? []),
+            })
+          }
+          onInstall={(item) =>
+            mutate(createAgentSkill, {
+              name: item.name,
+              description: item.summary,
+              body: item.description,
             })
           }
         />

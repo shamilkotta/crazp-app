@@ -274,7 +274,7 @@ function AgentRow({
 }) {
   return (
     <Link
-      href={`/${teamSlug}/agents/${agent.id}`}
+      href={`/${teamSlug}/agents/${agent.slug}`}
       className={cn(
         "flex items-center gap-3 px-4 py-3 hover:bg-muted/50",
         !last && "border-b border-border"
@@ -305,7 +305,7 @@ function AgentCard({
   teamSlug: string;
 }) {
   return (
-    <Link href={`/${teamSlug}/agents/${agent.id}`}>
+    <Link href={`/${teamSlug}/agents/${agent.slug}`}>
       <Surface className="h-full p-5 transition-colors hover:bg-muted/40">
         <div className="flex items-start justify-between gap-3">
           <AgentMark name={agent.name} />

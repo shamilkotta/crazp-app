@@ -10,6 +10,7 @@ import {
   agentDeploymentEvents,
   agentDeployments,
   agentScheduledTasks,
+  agentSkillResources,
   agentSkills,
   agentSubagents,
   agentTools,
@@ -60,11 +61,28 @@ const createToolSchema = agentActionSchema.extend({
   configPath: z.string().trim().max(300).optional(),
 });
 
+const skillResourceSchema = z.object({
+  kind: z.enum(["script", "reference", "asset"]),
+  path: z
+    .string()
+    .trim()
+    .min(1)
+    .max(300)
+    .regex(/^(scripts|references|assets)\/[A-Za-z0-9._-]+$/),
+  mimeType: z.string().trim().max(200).optional(),
+  encoding: z.enum(["text", "base64"]),
+  content: z.string().max(2_000_000),
+  size: z.number().int().min(0).max(1_048_576),
+});
+
 const createSkillSchema = agentActionSchema.extend({
-  name: z.string().trim().min(1).max(80),
-  description: z.string().trim().max(1_000).optional(),
-  body: z.string().trim().max(20_000).optional(),
+  name: z.string().trim().min(1).max(64),
+  description: z.string().trim().max(1_024).optional(),
+  body: z.string().trim().max(50_000).optional(),
   allowedTools: z.string().trim().max(1_000).optional(),
+  license: z.string().trim().max(160).optional(),
+  compatibility: z.string().trim().max(500).optional(),
+  resources: z.array(skillResourceSchema).max(20).optional(),
 });
 
 const createSubagentSchema = agentActionSchema.extend({
@@ -150,6 +168,53 @@ function optionalString(value: FormDataEntryValue | null) {
   return text || undefined;
 }
 
+function parseSkillResources(value: FormDataEntryValue | null) {
+  const text = optionalString(value);
+  if (!text) return [];
+  try {
+    const parsed: unknown = JSON.parse(text);
+    const result = z.array(skillResourceSchema).max(20).safeParse(parsed);
+    return result.success ? result.data : [];
+  } catch {
+    return [];
+  }
+}
+
+function skillNameSlug(name: string) {
+  return (
+    name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 64) || "skill"
+  );
+}
+
+function buildSkillRawContent(input: {
+  name: string;
+  description: string;
+  body: string;
+  license?: string;
+  compatibility?: string;
+  allowedTools?: string;
+}) {
+  const lines = [
+    "---",
+    `name: ${skillNameSlug(input.name)}`,
+    `description: ${JSON.stringify(input.description)}`,
+  ];
+  if (input.license) lines.push(`license: ${JSON.stringify(input.license)}`);
+  if (input.compatibility) {
+    lines.push(`compatibility: ${JSON.stringify(input.compatibility)}`);
+  }
+  if (input.allowedTools) {
+    lines.push(`allowed-tools: ${JSON.stringify(input.allowedTools)}`);
+  }
+  lines.push("---", "", input.body.trim());
+  return `${lines.join("\n")}\n`;
+}
+
 function checked(formData: FormData, key: string) {
   return formData.get(key) === "on" || formData.get(key) === "true";
 }
@@ -177,7 +242,11 @@ async function getAuthorizedAgent(teamSlug: string, agentId: string) {
 
   const db = getDb();
   const [agent] = await db
-    .select({ id: agents.id, organizationId: agents.organizationId })
+    .select({
+      id: agents.id,
+      slug: agents.slug,
+      organizationId: agents.organizationId,
+    })
     .from(agents)
     .where(
       and(eq(agents.id, agentId), eq(agents.organizationId, organization.id))
@@ -187,9 +256,9 @@ async function getAuthorizedAgent(teamSlug: string, agentId: string) {
   return agent ? { agent, organization } : null;
 }
 
-function revalidateAgentPaths(teamSlug: string, agentId: string) {
+function revalidateAgentPaths(teamSlug: string, agentSlug: string) {
   revalidatePath(`/${teamSlug}`, "layout");
-  revalidatePath(`/${teamSlug}/agents/${agentId}`, "layout");
+  revalidatePath(`/${teamSlug}/agents/${agentSlug}`, "layout");
 }
 
 async function enqueueDeploymentJob(payload: DeploymentQueueMessage) {
@@ -278,7 +347,7 @@ export async function updateAgentSetup(formData: FormData) {
     })
     .where(eq(agents.id, parsed.data.agentId));
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function archiveAgent(formData: FormData) {
@@ -330,7 +399,7 @@ export async function pauseOrResumeAgent(formData: FormData) {
     .set({ status: agent.status === "paused" ? "active" : "paused" })
     .where(eq(agents.id, parsed.data.agentId));
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function createAgentTool(formData: FormData) {
@@ -362,7 +431,7 @@ export async function createAgentTool(formData: FormData) {
     configPath: parsed.data.configPath,
   });
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function createAgentSkill(formData: FormData) {
@@ -374,6 +443,9 @@ export async function createAgentSkill(formData: FormData) {
     description: optionalString(formData.get("description")),
     body: optionalString(formData.get("body")),
     allowedTools: optionalString(formData.get("allowedTools")),
+    license: optionalString(formData.get("license")),
+    compatibility: optionalString(formData.get("compatibility")),
+    resources: parseSkillResources(formData.get("resources")),
   });
   if (!parsed.success) return;
 
@@ -383,19 +455,46 @@ export async function createAgentSkill(formData: FormData) {
   );
   if (!authorized) return;
 
-  await getDb()
-    .insert(agentSkills)
-    .values({
-      id: crypto.randomUUID(),
-      agentId: parsed.data.agentId,
-      name: parsed.data.name,
-      description: parsed.data.description ?? "",
-      body: parsed.data.body ?? "",
-      rawContent: parsed.data.body ?? "",
-      allowedTools: parsed.data.allowedTools,
-    });
+  const description = parsed.data.description ?? "";
+  const body = parsed.data.body ?? "";
+  const skillId = crypto.randomUUID();
+  const db = getDb();
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  await db.insert(agentSkills).values({
+    id: skillId,
+    agentId: parsed.data.agentId,
+    name: parsed.data.name,
+    description,
+    body,
+    rawContent: buildSkillRawContent({
+      name: parsed.data.name,
+      description,
+      body,
+      license: parsed.data.license,
+      compatibility: parsed.data.compatibility,
+      allowedTools: parsed.data.allowedTools,
+    }),
+    allowedTools: parsed.data.allowedTools,
+    license: parsed.data.license,
+    compatibility: parsed.data.compatibility,
+  });
+
+  if (parsed.data.resources && parsed.data.resources.length > 0) {
+    await db.insert(agentSkillResources).values(
+      parsed.data.resources.map((resource) => ({
+        id: crypto.randomUUID(),
+        skillId,
+        path: resource.path,
+        kind: resource.kind,
+        encoding: resource.encoding,
+        mimeType: resource.mimeType,
+        size: resource.size,
+        content: resource.content,
+      }))
+    );
+  }
+
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function createAgentSubagent(formData: FormData) {
@@ -430,7 +529,7 @@ export async function createAgentSubagent(formData: FormData) {
       maxSteps: parsed.data.maxSteps,
     });
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function createAgentChannel(formData: FormData) {
@@ -464,7 +563,7 @@ export async function createAgentChannel(formData: FormData) {
       },
     });
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function createAgentConnection(formData: FormData) {
@@ -500,7 +599,7 @@ export async function createAgentConnection(formData: FormData) {
       },
     });
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function createAgentScheduledTask(formData: FormData) {
@@ -530,7 +629,7 @@ export async function createAgentScheduledTask(formData: FormData) {
     timezone: parsed.data.timezone,
   });
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function createAgentWorkflowTask(formData: FormData) {
@@ -560,7 +659,7 @@ export async function createAgentWorkflowTask(formData: FormData) {
       stepsJson: parseWorkflowSteps(parsed.data.steps),
     });
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function toggleAgentResource(formData: FormData) {
@@ -697,7 +796,7 @@ export async function toggleAgentResource(formData: FormData) {
     }
   }
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function deleteAgentResource(formData: FormData) {
@@ -778,7 +877,7 @@ export async function deleteAgentResource(formData: FormData) {
       );
   }
 
-  revalidateAgentPaths(parsed.data.teamSlug, parsed.data.agentId);
+  revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
 
 export async function deployAgent(formData: FormData) {
@@ -815,6 +914,7 @@ export async function deployAgent(formData: FormData) {
     )
     .returning({
       id: agents.id,
+      slug: agents.slug,
       workerName: agents.workerName,
     });
 
@@ -893,5 +993,5 @@ export async function deployAgent(formData: FormData) {
     });
   }
 
-  revalidateAgentPaths(teamSlug, agent.id);
+  revalidateAgentPaths(teamSlug, agent.slug);
 }

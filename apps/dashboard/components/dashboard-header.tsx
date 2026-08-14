@@ -42,9 +42,9 @@ export function DashboardHeader({
   session: Session;
 }) {
   const router = useRouter();
-  const params = useParams<{ id?: string; teamSlug?: string }>();
+  const params = useParams<{ agentSlug?: string; teamSlug?: string }>();
   const teamSlug = typeof params.teamSlug === "string" ? params.teamSlug : null;
-  const isAgentDetailPage = typeof params.id === "string";
+  const isAgentDetailPage = typeof params.agentSlug === "string";
   const {
     user: { name: userName, email: userEmail, image: userImage },
     session: { activeOrganizationId },
