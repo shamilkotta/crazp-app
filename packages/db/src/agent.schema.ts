@@ -33,6 +33,11 @@ export type AgentDeploymentManifest = {
       resources?: Record<string, unknown>[];
     }
   >;
+  dependencies?: Array<{
+    name: string;
+    version: string;
+    kind: "dependency" | "devDependency";
+  }>;
 };
 
 export const agents = sqliteTable(
@@ -97,7 +102,34 @@ export const agents = sqliteTable(
   ]
 );
 
-export const agentTools = sqliteTable(
+export const dependencies = sqliteTable(
+  "agent_dependencies",
+  {
+    id: text("id").primaryKey(),
+    agentId: text("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    version: text("version").notNull(),
+    kind: text("kind", {
+      enum: ["dependency", "devDependency"],
+    })
+      .notNull()
+      .default("dependency"),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    createdAt: timestamp("created_at"),
+    updatedAt: updatedTimestamp("updated_at"),
+  },
+  (table) => [
+    uniqueIndex("agent_dependencies_agent_name_idx").on(
+      table.agentId,
+      table.name
+    ),
+    index("agent_dependencies_agent_idx").on(table.agentId),
+  ]
+);
+
+export const tools = sqliteTable(
   "agent_tools",
   {
     id: text("id").primaryKey(),
@@ -125,7 +157,7 @@ export const agentTools = sqliteTable(
   ]
 );
 
-export const agentSubagents = sqliteTable(
+export const subagents = sqliteTable(
   "agent_subagents",
   {
     id: text("id").primaryKey(),
@@ -148,13 +180,13 @@ export const agentSubagents = sqliteTable(
   ]
 );
 
-export const agentSubagentTools = sqliteTable(
+export const subagentTools = sqliteTable(
   "agent_subagent_tools",
   {
     id: text("id").primaryKey(),
     subagentId: text("subagent_id")
       .notNull()
-      .references(() => agentSubagents.id, { onDelete: "cascade" }),
+      .references(() => subagents.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     kind: text("kind", {
       enum: ["file", "inline", "builtin", "external"],
@@ -179,7 +211,7 @@ export const agentSubagentTools = sqliteTable(
   ]
 );
 
-export const agentSkills = sqliteTable(
+export const skills = sqliteTable(
   "agent_skills",
   {
     id: text("id").primaryKey(),
@@ -206,21 +238,20 @@ export const agentSkills = sqliteTable(
   ]
 );
 
-export const agentSkillResources = sqliteTable(
+export const skillResources = sqliteTable(
   "agent_skill_resources",
   {
     id: text("id").primaryKey(),
     skillId: text("skill_id")
       .notNull()
-      .references(() => agentSkills.id, { onDelete: "cascade" }),
+      .references(() => skills.id, { onDelete: "cascade" }),
     path: text("path").notNull(),
     kind: text("kind", {
       enum: ["reference", "script", "asset", "file"],
     }).notNull(),
-    encoding: text("encoding", { enum: ["text", "base64"] }).notNull(),
     mimeType: text("mime_type"),
     size: integer("size").notNull().default(0),
-    content: text("content").notNull().default(""),
+    key: text("key").notNull(),
     precompiled: integer("precompiled", { mode: "boolean" })
       .notNull()
       .default(false),
@@ -236,7 +267,7 @@ export const agentSkillResources = sqliteTable(
   ]
 );
 
-export const agentChannels = sqliteTable(
+export const channels = sqliteTable(
   "agent_channels",
   {
     id: text("id").primaryKey(),
@@ -265,7 +296,7 @@ export const agentChannels = sqliteTable(
   ]
 );
 
-export const agentConnections = sqliteTable(
+export const connections = sqliteTable(
   "agent_connections",
   {
     id: text("id").primaryKey(),
@@ -296,7 +327,7 @@ export const agentConnections = sqliteTable(
   ]
 );
 
-export const agentScheduledTasks = sqliteTable(
+export const scheduledTasks = sqliteTable(
   "agent_scheduled_tasks",
   {
     id: text("id").primaryKey(),
@@ -321,7 +352,7 @@ export const agentScheduledTasks = sqliteTable(
   ]
 );
 
-export const agentWorkflowTasks = sqliteTable(
+export const workflowTasks = sqliteTable(
   "agent_workflow_tasks",
   {
     id: text("id").primaryKey(),
@@ -349,7 +380,7 @@ export const agentWorkflowTasks = sqliteTable(
   ]
 );
 
-export const agentDeployments = sqliteTable(
+export const deployments = sqliteTable(
   "agent_deployments",
   {
     id: text("id").primaryKey(),
@@ -405,13 +436,13 @@ export const agentDeployments = sqliteTable(
   ]
 );
 
-export const agentDeploymentEvents = sqliteTable(
+export const deploymentEvents = sqliteTable(
   "agent_deployment_events",
   {
     id: text("id").primaryKey(),
     deploymentId: text("deployment_id")
       .notNull()
-      .references(() => agentDeployments.id, { onDelete: "cascade" }),
+      .references(() => deployments.id, { onDelete: "cascade" }),
     level: text("level", { enum: ["info", "warn", "error"] })
       .notNull()
       .default("info"),
@@ -437,141 +468,130 @@ export const agentsRelations = relations(agents, ({ many, one }) => ({
     fields: [agents.createdByUserId],
     references: [users.id],
   }),
-  tools: many(agentTools),
-  subagents: many(agentSubagents),
-  skills: many(agentSkills),
-  channels: many(agentChannels),
-  connections: many(agentConnections),
-  scheduledTasks: many(agentScheduledTasks),
-  workflowTasks: many(agentWorkflowTasks),
-  deployments: many(agentDeployments),
+  tools: many(tools),
+  dependencies: many(dependencies),
+  subagents: many(subagents),
+  skills: many(skills),
+  channels: many(channels),
+  connections: many(connections),
+  scheduledTasks: many(scheduledTasks),
+  workflowTasks: many(workflowTasks),
+  deployments: many(deployments),
 }));
 
-export const agentToolsRelations = relations(agentTools, ({ one }) => ({
+export const dependenciesRelations = relations(dependencies, ({ one }) => ({
   agent: one(agents, {
-    fields: [agentTools.agentId],
+    fields: [dependencies.agentId],
     references: [agents.id],
   }),
 }));
 
-export const agentSubagentsRelations = relations(
-  agentSubagents,
-  ({ many, one }) => ({
-    agent: one(agents, {
-      fields: [agentSubagents.agentId],
-      references: [agents.id],
-    }),
-    tools: many(agentSubagentTools),
-  })
-);
-
-export const agentSubagentToolsRelations = relations(
-  agentSubagentTools,
-  ({ one }) => ({
-    subagent: one(agentSubagents, {
-      fields: [agentSubagentTools.subagentId],
-      references: [agentSubagents.id],
-    }),
-  })
-);
-
-export const agentSkillsRelations = relations(agentSkills, ({ many, one }) => ({
+export const toolsRelations = relations(tools, ({ one }) => ({
   agent: one(agents, {
-    fields: [agentSkills.agentId],
-    references: [agents.id],
-  }),
-  resources: many(agentSkillResources),
-}));
-
-export const agentSkillResourcesRelations = relations(
-  agentSkillResources,
-  ({ one }) => ({
-    skill: one(agentSkills, {
-      fields: [agentSkillResources.skillId],
-      references: [agentSkills.id],
-    }),
-  })
-);
-
-export const agentChannelsRelations = relations(agentChannels, ({ one }) => ({
-  agent: one(agents, {
-    fields: [agentChannels.agentId],
+    fields: [tools.agentId],
     references: [agents.id],
   }),
 }));
 
-export const agentConnectionsRelations = relations(
-  agentConnections,
-  ({ one }) => ({
-    agent: one(agents, {
-      fields: [agentConnections.agentId],
-      references: [agents.id],
-    }),
-  })
-);
+export const subagentsRelations = relations(subagents, ({ many, one }) => ({
+  agent: one(agents, {
+    fields: [subagents.agentId],
+    references: [agents.id],
+  }),
+  tools: many(subagentTools),
+}));
 
-export const agentScheduledTasksRelations = relations(
-  agentScheduledTasks,
-  ({ one }) => ({
-    agent: one(agents, {
-      fields: [agentScheduledTasks.agentId],
-      references: [agents.id],
-    }),
-  })
-);
+export const subagentToolsRelations = relations(subagentTools, ({ one }) => ({
+  subagent: one(subagents, {
+    fields: [subagentTools.subagentId],
+    references: [subagents.id],
+  }),
+}));
 
-export const agentWorkflowTasksRelations = relations(
-  agentWorkflowTasks,
-  ({ one }) => ({
-    agent: one(agents, {
-      fields: [agentWorkflowTasks.agentId],
-      references: [agents.id],
-    }),
-  })
-);
+export const skillsRelations = relations(skills, ({ many, one }) => ({
+  agent: one(agents, {
+    fields: [skills.agentId],
+    references: [agents.id],
+  }),
+  resources: many(skillResources),
+}));
 
-export const agentDeploymentsRelations = relations(
-  agentDeployments,
-  ({ many, one }) => ({
-    agent: one(agents, {
-      fields: [agentDeployments.agentId],
-      references: [agents.id],
-    }),
-    events: many(agentDeploymentEvents),
-  })
-);
+export const skillResourcesRelations = relations(skillResources, ({ one }) => ({
+  skill: one(skills, {
+    fields: [skillResources.skillId],
+    references: [skills.id],
+  }),
+}));
 
-export const agentDeploymentEventsRelations = relations(
-  agentDeploymentEvents,
+export const channelsRelations = relations(channels, ({ one }) => ({
+  agent: one(agents, {
+    fields: [channels.agentId],
+    references: [agents.id],
+  }),
+}));
+
+export const connectionsRelations = relations(connections, ({ one }) => ({
+  agent: one(agents, {
+    fields: [connections.agentId],
+    references: [agents.id],
+  }),
+}));
+
+export const scheduledTasksRelations = relations(scheduledTasks, ({ one }) => ({
+  agent: one(agents, {
+    fields: [scheduledTasks.agentId],
+    references: [agents.id],
+  }),
+}));
+
+export const workflowTasksRelations = relations(workflowTasks, ({ one }) => ({
+  agent: one(agents, {
+    fields: [workflowTasks.agentId],
+    references: [agents.id],
+  }),
+}));
+
+export const deploymentsRelations = relations(deployments, ({ many, one }) => ({
+  agent: one(agents, {
+    fields: [deployments.agentId],
+    references: [agents.id],
+  }),
+  events: many(deploymentEvents),
+}));
+
+export const deploymentEventsRelations = relations(
+  deploymentEvents,
   ({ one }) => ({
-    deployment: one(agentDeployments, {
-      fields: [agentDeploymentEvents.deploymentId],
-      references: [agentDeployments.id],
+    deployment: one(deployments, {
+      fields: [deploymentEvents.deploymentId],
+      references: [deployments.id],
     }),
   })
 );
 
 export type Agent = typeof agents.$inferSelect;
 export type NewAgent = typeof agents.$inferInsert;
-export type AgentTool = typeof agentTools.$inferSelect;
-export type NewAgentTool = typeof agentTools.$inferInsert;
-export type AgentSubagent = typeof agentSubagents.$inferSelect;
-export type NewAgentSubagent = typeof agentSubagents.$inferInsert;
-export type AgentSubagentTool = typeof agentSubagentTools.$inferSelect;
-export type NewAgentSubagentTool = typeof agentSubagentTools.$inferInsert;
-export type AgentSkill = typeof agentSkills.$inferSelect;
-export type NewAgentSkill = typeof agentSkills.$inferInsert;
-export type AgentSkillResource = typeof agentSkillResources.$inferSelect;
-export type NewAgentSkillResource = typeof agentSkillResources.$inferInsert;
-export type AgentChannel = typeof agentChannels.$inferSelect;
-export type NewAgentChannel = typeof agentChannels.$inferInsert;
-export type AgentConnection = typeof agentConnections.$inferSelect;
-export type NewAgentConnection = typeof agentConnections.$inferInsert;
-export type AgentScheduledTask = typeof agentScheduledTasks.$inferSelect;
-export type NewAgentScheduledTask = typeof agentScheduledTasks.$inferInsert;
-export type AgentWorkflowTask = typeof agentWorkflowTasks.$inferSelect;
-export type NewAgentWorkflowTask = typeof agentWorkflowTasks.$inferInsert;
-export type AgentDeployment = typeof agentDeployments.$inferSelect;
-export type NewAgentDeployment = typeof agentDeployments.$inferInsert;
-export type AgentDeploymentEvent = typeof agentDeploymentEvents.$inferSelect;
-export type NewAgentDeploymentEvent = typeof agentDeploymentEvents.$inferInsert;
+export type AgentDependency = typeof dependencies.$inferSelect;
+export type NewAgentDependency = typeof dependencies.$inferInsert;
+export type AgentTool = typeof tools.$inferSelect;
+export type NewAgentTool = typeof tools.$inferInsert;
+export type AgentSubagent = typeof subagents.$inferSelect;
+export type NewAgentSubagent = typeof subagents.$inferInsert;
+export type AgentSubagentTool = typeof subagentTools.$inferSelect;
+export type NewAgentSubagentTool = typeof subagentTools.$inferInsert;
+export type AgentSkill = typeof skills.$inferSelect;
+export type NewAgentSkill = typeof skills.$inferInsert;
+export type AgentSkillResource = typeof skillResources.$inferSelect;
+export type NewAgentSkillResource = typeof skillResources.$inferInsert;
+export type AgentChannel = typeof channels.$inferSelect;
+export type NewAgentChannel = typeof channels.$inferInsert;
+export type AgentConnection = typeof connections.$inferSelect;
+export type NewAgentConnection = typeof connections.$inferInsert;
+export type AgentScheduledTask = typeof scheduledTasks.$inferSelect;
+export type NewAgentScheduledTask = typeof scheduledTasks.$inferInsert;
+export type AgentWorkflowTask = typeof workflowTasks.$inferSelect;
+export type NewAgentWorkflowTask = typeof workflowTasks.$inferInsert;
+export type AgentDeployment = typeof deployments.$inferSelect;
+export type NewAgentDeployment = typeof deployments.$inferInsert;
+export type AgentDeploymentEvent = typeof deploymentEvents.$inferSelect;
+export type NewAgentDeploymentEvent = typeof deploymentEvents.$inferInsert;
