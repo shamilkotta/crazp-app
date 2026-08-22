@@ -61,6 +61,20 @@ function parseTrustedOrigins(value: string | undefined, baseURL: string) {
   return [...new Set(origins)];
 }
 
+function escapeHtml(value: string) {
+  return value.replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char] ?? char
+  );
+}
+
 function isLocalhostDomain(domain: string) {
   const host = domain.replace(/^\./, "");
   return host === "localhost" || host.endsWith(".localhost");
@@ -194,11 +208,13 @@ function authBuilder(ctx: CloudflareContext) {
             invitationExpiresIn: 60 * 60 * 24 * 7,
             sendInvitationEmail: async (data) => {
               const inviteUrl = `${ctx.env.BETTER_AUTH_URL}/accept-invite?invitationId=${data.invitation.id}`;
+              const inviterName = escapeHtml(data.inviter.user.name);
+              const organizationName = escapeHtml(data.organization.name);
               await sendAuthEmail(ctx.env.EMAIL, emailFrom, {
                 to: data.email,
                 subject: `Join ${data.organization.name} on crazp`,
                 text: `${data.inviter.user.name} invited you to join ${data.organization.name}. Accept: ${inviteUrl}`,
-                html: `<p>${data.inviter.user.name} invited you to join <strong>${data.organization.name}</strong>.</p><p><a href="${inviteUrl}">Accept invitation</a></p>`,
+                html: `<p>${inviterName} invited you to join <strong>${organizationName}</strong>.</p><p><a href="${inviteUrl}">Accept invitation</a></p>`,
               });
             },
           }),

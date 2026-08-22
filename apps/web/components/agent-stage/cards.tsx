@@ -150,9 +150,13 @@ export function BrowserAgentCard() {
     "notion.so/brief/launch",
   ];
 
-  useAnimatedInterval(() => {
-    setUrlIndex((i) => (i + 1) % urls.length);
-  }, 2800, [urls.length]);
+  useAnimatedInterval(
+    () => {
+      setUrlIndex((i) => (i + 1) % urls.length);
+    },
+    2800,
+    [urls.length]
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -345,9 +349,13 @@ export function OrderFlowCard() {
   const stages = ["Cart", "Pay", "Ship", "Done"];
   const [stage, setStage] = useState(0);
 
-  useAnimatedInterval(() => {
-    setStage((s) => (s + 1) % stages.length);
-  }, 1600, [stages.length]);
+  useAnimatedInterval(
+    () => {
+      setStage((s) => (s + 1) % stages.length);
+    },
+    1600,
+    [stages.length]
+  );
 
   return (
     <div className="flex h-full flex-col gap-3 p-3">
@@ -395,9 +403,13 @@ export function CalendarBookCard() {
   const slots = ["Tue 10:00", "Tue 14:30", "Wed 09:00"];
   const [picked, setPicked] = useState(1);
 
-  useAnimatedInterval(() => {
-    setPicked((p) => (p + 1) % slots.length);
-  }, 2000, [slots.length]);
+  useAnimatedInterval(
+    () => {
+      setPicked((p) => (p + 1) % slots.length);
+    },
+    2000,
+    [slots.length]
+  );
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -531,9 +543,13 @@ export function InboxTriageCard() {
   ];
   const [active, setActive] = useState(0);
 
-  useAnimatedInterval(() => {
-    setActive((a) => (a + 1) % items.length);
-  }, 1700, [items.length]);
+  useAnimatedInterval(
+    () => {
+      setActive((a) => (a + 1) % items.length);
+    },
+    1700,
+    [items.length]
+  );
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -743,9 +759,13 @@ export function AgentThinkingCard() {
   ];
   const [active, setActive] = useState(0);
 
-  useAnimatedInterval(() => {
-    setActive((a) => (a + 1) % steps.length);
-  }, 1500, [steps.length]);
+  useAnimatedInterval(
+    () => {
+      setActive((a) => (a + 1) % steps.length);
+    },
+    1500,
+    [steps.length]
+  );
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -822,8 +842,7 @@ export function SlackChannelCard() {
 
   useEffect(() => {
     if (!animated) return;
-    const full =
-      "Linked the PR + updated the FAQ. Ready for review @jordan";
+    const full = "Linked the PR + updated the FAQ. Ready for review @jordan";
     let i = 0;
     let phase: "type" | "hold" | "clear" = "type";
     const id = window.setInterval(() => {
@@ -911,9 +930,13 @@ export function LinearIssueCard() {
   const [status, setStatus] = useState(0);
   const statuses = ["Backlog", "In Progress", "In Review", "Done"];
 
-  useAnimatedInterval(() => {
-    setStatus((s) => (s + 1) % statuses.length);
-  }, 1800, [statuses.length]);
+  useAnimatedInterval(
+    () => {
+      setStatus((s) => (s + 1) % statuses.length);
+    },
+    1800,
+    [statuses.length]
+  );
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -932,7 +955,7 @@ export function LinearIssueCard() {
           {statuses[status]}
         </span>
       </div>
-      <p className="text-[11px] font-medium leading-snug">
+      <p className="text-[11px] leading-snug font-medium">
         Agent-authored FAQ refresh for pricing page
       </p>
       <div className="mt-auto flex flex-wrap gap-1">
@@ -1090,7 +1113,9 @@ export function DatabaseQueryCard() {
       <div className="flex flex-1 flex-col gap-1 p-2.5">
         <span className="text-muted-foreground">SELECT count(*) FROM</span>
         <span>trials WHERE plan = &apos;pro&apos;</span>
-        <span className="text-muted-foreground">AND created_at &gt; now() - 7;</span>
+        <span className="text-muted-foreground">
+          AND created_at &gt; now() - 7;
+        </span>
         <div className="mt-auto flex items-center gap-1.5 border-t border-border/50 pt-2 text-[9px]">
           {running ? (
             <>
@@ -1117,9 +1142,13 @@ export function MeetingNotesCard() {
   ];
   const [count, setCount] = useState(1);
 
-  useAnimatedInterval(() => {
-    setCount((c) => (c >= notes.length ? 1 : c + 1));
-  }, 1500, [notes.length]);
+  useAnimatedInterval(
+    () => {
+      setCount((c) => (c >= notes.length ? 1 : c + 1));
+    },
+    1500,
+    [notes.length]
+  );
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -1149,9 +1178,13 @@ export function CiPipelineCard() {
   const steps = ["Install", "Lint", "Test", "Deploy"];
   const [step, setStep] = useState(0);
 
-  useAnimatedInterval(() => {
-    setStep((s) => (s + 1) % (steps.length + 1));
-  }, 1200, [steps.length]);
+  useAnimatedInterval(
+    () => {
+      setStep((s) => (s + 1) % (steps.length + 1));
+    },
+    1200,
+    [steps.length]
+  );
 
   return (
     <div className="flex h-full flex-col gap-2.5 p-3">
@@ -1224,7 +1257,9 @@ export function FileSearchCard() {
             key={hit}
             className={cn(
               "truncate rounded-md px-2 py-1.5 font-mono text-[9px]",
-              i === 0 ? "bg-foreground/5 text-foreground" : "text-muted-foreground"
+              i === 0
+                ? "bg-foreground/5 text-foreground"
+                : "text-muted-foreground"
             )}
           >
             {hit}
@@ -1243,9 +1278,13 @@ export function VoiceTranscriptCard() {
     "Customer: Perfect, send an invite.",
   ];
 
-  useAnimatedInterval(() => {
-    setLine((l) => (l + 1) % lines.length);
-  }, 1800, [lines.length]);
+  useAnimatedInterval(
+    () => {
+      setLine((l) => (l + 1) % lines.length);
+    },
+    1800,
+    [lines.length]
+  );
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -1264,7 +1303,7 @@ export function VoiceTranscriptCard() {
               "rounded-md px-2 py-1.5 text-[10px] transition-opacity",
               i === line
                 ? "bg-foreground/5 opacity-100"
-                : "opacity-35 text-muted-foreground"
+                : "text-muted-foreground opacity-35"
             )}
           >
             {text}
@@ -1314,9 +1353,13 @@ export function MetricsPulseCard() {
   const bars = [40, 65, 48, 80, 56, 72, 90, 62];
   const [hl, setHl] = useState(3);
 
-  useAnimatedInterval(() => {
-    setHl((h) => (h + 1) % bars.length);
-  }, 900, [bars.length]);
+  useAnimatedInterval(
+    () => {
+      setHl((h) => (h + 1) % bars.length);
+    },
+    900,
+    [bars.length]
+  );
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
@@ -1351,9 +1394,13 @@ export function WebhookEventCard() {
   ];
   const [active, setActive] = useState(2);
 
-  useAnimatedInterval(() => {
-    setActive((a) => (a + 1) % events.length);
-  }, 1600, [events.length]);
+  useAnimatedInterval(
+    () => {
+      setActive((a) => (a + 1) % events.length);
+    },
+    1600,
+    [events.length]
+  );
 
   return (
     <div className="flex h-full flex-col gap-2 p-3">
