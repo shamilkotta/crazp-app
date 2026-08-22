@@ -1,0 +1,31 @@
+# Copy to apps/worker/.dev.vars and fill in real values.
+# .dev.vars is gitignored and loaded automatically by `wrangler dev`.
+
+# Cloudflare account id (Dashboard → Workers → Overview, or `wrangler whoami`)
+CLOUDFLARE_ACCOUNT_ID=
+
+# API token with Workers Scripts Edit + Workers for Platforms permissions.
+# Set ONLY on the build worker — never in the sandbox:
+#   wrangler secret put CLOUDFLARE_API_TOKEN
+# Sandbox wrangler deploy calls are authenticated via outboundByHost in src/index.ts.
+# https://blog.cloudflare.com/sandbox-auth/
+CLOUDFLARE_API_TOKEN=
+
+# R2 S3 API token (Dashboard → R2 → Overview → Manage R2 API Tokens)
+# Create a token with Object Read & Write on crazp-agent-deployments.
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+
+# Non-secret; also set in wrangler.jsonc vars. Keep in sync for local clarity.
+R2_BUCKET_NAME=
+
+# Workers for Platforms dispatch namespace for user-agent deploys.
+DISPATCH_NAMESPACE=crazp-agents-dev
+
+# Optional: public URL for your dispatch worker (no trailing slash).
+# User workers are reached at {DISPATCH_WORKER_BASE_URL}/{workerName}.
+DISPATCH_WORKER_BASE_URL=
+
+# Required for local sandbox R2 mounts. Local Docker has no /dev/fuse, so
+# mountBucket must use sync-based localBucket mode instead of s3fs.
+LOCAL_DEV=true

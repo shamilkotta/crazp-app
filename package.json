@@ -8,6 +8,7 @@
     "lint": "turbo lint",
     "format": "oxfmt .",
     "typecheck": "turbo typecheck",
+    "vendor:crazp": "node scripts/vendor-crazp-core.mjs",
     "db:generate": "pnpm --filter @workspace/db db:generate",
     "db:migrate:local": "pnpm --filter dashboard db:migrate:local",
     "db:studio": "pnpm --filter @workspace/db db:studio",

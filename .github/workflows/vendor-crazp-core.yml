@@ -1,0 +1,58 @@
+name: Vendor crazp core
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/worker/crazp-core.version
+      - scripts/vendor-crazp-core.mjs
+      - .github/workflows/vendor-crazp-core.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vendor-crazp-core
+  cancel-in-progress: true
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout crazp-app
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Vendor @crazp/core
+        env:
+          CI: "true"
+          CRAZP_CORE_REQUIRE_TAGS: "1"
+          CRAZP_CORE_TOKEN: ${{ secrets.CRAZP_CORE_TOKEN }}
+        run: pnpm vendor:crazp
+
+      - name: Commit vendored tarball
+        run: |
+          version="$(tr -d '[:space:]' < apps/worker/crazp-core.version)"
+          git add apps/worker/src/vendor apps/worker/src/build.ts
+          if git diff --cached --quiet; then
+            echo "Vendor artifacts already up to date for @crazp/core@${version}"
+            exit 0
+          fi
+          git commit -m "chore(worker): vendor @crazp/core@${version}"
+          git push
