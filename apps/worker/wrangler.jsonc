@@ -1,9 +1,16 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "crazp-agent-build-worker",
+  "name": "worker",
   "main": "src/index.ts",
   "compatibility_date": "2025-07-27",
-  "compatibility_flags": ["nodejs_compat_v2"],
+  "compatibility_flags": ["nodejs_compat_v2", "enable_ctx_exports"],
+  "rules": [
+    {
+      "type": "Data",
+      "globs": ["**/*.tgz"],
+      "fallthrough": false,
+    },
+  ],
   "d1_databases": [
     {
       "binding": "DATABASE",
@@ -15,7 +22,8 @@
   "r2_buckets": [
     {
       "binding": "AGENT_DEPLOYMENT_BUCKET",
-      "bucket_name": "crazp-agent-deployments",
+      "bucket_name": "crazp-agent-deployments-dev",
+      "remote": true,
     },
   ],
   "queues": {
@@ -26,7 +34,26 @@
       },
     ],
   },
-  "vars": {
-    "CLOUDFLARE_API_BASE_URL": "https://api.cloudflare.com/client/v4",
+  "containers": [
+    {
+      "class_name": "Sandbox",
+      "image": "./Dockerfile",
+      "instance_type": "lite",
+      "max_instances": 3,
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "Sandbox",
+        "name": "SANDBOX",
+      },
+    ],
   },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["Sandbox"],
+    },
+  ],
 }

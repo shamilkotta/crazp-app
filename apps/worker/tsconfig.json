@@ -5,9 +5,8 @@
     "moduleResolution": "Bundler",
     "noEmit": true,
     "declaration": false,
-    "declarationMap": false,
-    "types": ["@cloudflare/workers-types"]
+    "declarationMap": false
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "cloudflare-env.d.ts"],
   "exclude": ["node_modules"]
 }

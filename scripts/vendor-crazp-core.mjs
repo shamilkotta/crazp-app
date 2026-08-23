@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const versionFile = resolve(repoRoot, "apps/worker/crazp-core.version");
 const vendorDir = resolve(repoRoot, "apps/worker/src/vendor");
-const buildTsPath = resolve(repoRoot, "apps/worker/src/build.ts");
+const buildTsPath = resolve(repoRoot, "apps/worker/src/sandbox.ts");
 const siblingCoreDir = resolve(repoRoot, "../crazp/packages/core");
 // packages/core lives in its own repo (submodule of crazp).
 const defaultRepoUrl = "https://github.com/shamilkotta/crazp-core.git";

@@ -22,8 +22,9 @@ R2_BUCKET_NAME=
 # Workers for Platforms dispatch namespace for user-agent deploys.
 DISPATCH_NAMESPACE=crazp-agents-dev
 
-# Optional: public URL for your dispatch worker (no trailing slash).
-# User workers are reached at {DISPATCH_WORKER_BASE_URL}/{workerName}.
+# Optional: public origin of apps/dispatch (no trailing slash).
+# User workers are reached at https://{workerName}.{host}.
+# Example: https://agents.crazp.dev → https://crazp-acme-bot.agents.crazp.dev
 DISPATCH_WORKER_BASE_URL=
 
 # Required for local sandbox R2 mounts. Local Docker has no /dev/fuse, so
