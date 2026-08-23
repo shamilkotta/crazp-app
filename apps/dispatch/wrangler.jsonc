@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "dispatcher",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-23",
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
+  "dev": {
+    "port": 8788,
+  },
+  "dispatch_namespaces": [
+    {
+      "binding": "DISPATCHER",
+      "namespace": "crazp-agents-dev",
+      "remote": true,
+    },
+  ],
+}

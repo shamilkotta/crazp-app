@@ -1,0 +1,7 @@
+# No secrets are required for the dispatch worker.
+# Bind a wildcard hostname to this worker in the Cloudflare dashboard:
+#   DNS:   *.agents.example.com  →  192.0.2.0 (proxied)
+#   Route: *.agents.example.com/* → crazp-dispatch
+#
+# Local: http://{workerName}.localhost:8788
+#   The first hostname label is the script name in DISPATCH_NAMESPACE.
