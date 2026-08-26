@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1785402464925,
-      "tag": "0000_outgoing_miracleman",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1785500000000,
-      "tag": "0001_agent_platform",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1787209804709,
-      "tag": "0002_agent_resources",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1787300000000,
-      "tag": "0003_skill_resource_r2",
+      "when": 1787494603854,
+      "tag": "0000_charming_gladiator",
       "breakpoints": true
     }
   ]

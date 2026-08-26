@@ -82,7 +82,6 @@ export const agents = sqliteTable(
     })
       .notNull()
       .default("draft"),
-    workerName: text("worker_name"),
     deploymentUrl: text("deployment_url"),
     latestDeploymentId: text("latest_deployment_id"),
     lastRunAt: integer("last_run_at", { mode: "timestamp_ms" }),
@@ -164,8 +163,8 @@ export const subagents = sqliteTable(
     agentId: text("agent_id")
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
-    key: text("key").notNull(),
-    displayName: text("display_name").notNull(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
     description: text("description").notNull().default(""),
     instructions: text("instructions").notNull().default(""),
     model: text("model").notNull().default("@cf/moonshotai/kimi-k2.6"),
@@ -175,7 +174,7 @@ export const subagents = sqliteTable(
     updatedAt: updatedTimestamp("updated_at"),
   },
   (table) => [
-    uniqueIndex("agent_subagents_agent_key_idx").on(table.agentId, table.key),
+    uniqueIndex("agent_subagents_agent_slug_idx").on(table.agentId, table.slug),
     index("agent_subagents_agent_idx").on(table.agentId),
   ]
 );
@@ -402,7 +401,7 @@ export const deployments = sqliteTable(
       .default("queued"),
     workerName: text("worker_name").notNull(),
     workerUrl: text("worker_url"),
-    cloudflareAccountId: text("cloudflare_account_id"),
+    // cloudflareAccountId: text("cloudflare_account_id"),
     trigger: text("trigger", { enum: ["deploy", "rollback"] })
       .notNull()
       .default("deploy"),
