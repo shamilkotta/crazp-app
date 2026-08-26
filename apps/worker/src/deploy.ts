@@ -26,14 +26,20 @@ export async function deployCrazp(
       shellQuote(".crazp/output/wrangler.json"),
       "--name",
       shellQuote(input.workerName),
-      "--dispatch-namespace",
-      shellQuote(input.dispatchNamespace),
+      // Workers for Platforms dispatch namespace — restore when the account has access.
+      // "--dispatch-namespace",
+      // shellQuote(input.dispatchNamespace),
     ].join(" "),
     {
       cwd: workdir,
       env: {
         CLOUDFLARE_ACCOUNT_ID: env.CLOUDFLARE_ACCOUNT_ID,
+        // Placeholder only — wrangler refuses to run without this env var.
+        // The real token stays on the Worker and is injected by outboundByHost.
+        CLOUDFLARE_API_TOKEN: "injected-by-outbound-handler",
         WRANGLER_SEND_METRICS: "false",
+        // DinD cannot use iptables, so docker build must share the host network.
+        WRANGLER_CI_OVERRIDE_NETWORK_MODE_HOST: "true",
       },
     }
   );

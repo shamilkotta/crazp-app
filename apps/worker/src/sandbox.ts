@@ -3,7 +3,7 @@ import {
   Sandbox as BaseSandbox,
   ContainerProxy,
 } from "@cloudflare/sandbox";
-import crazpCoreTarball from "./vendor/crazp-core-0.0.3.tgz";
+import crazpCoreTarball from "./vendor/crazp-core-0.1.0.tgz";
 
 export class Sandbox extends BaseSandbox {
   // Keep general egress off; allowlisted HTTPS must be intercepted or TLS
@@ -16,26 +16,30 @@ export class Sandbox extends BaseSandbox {
     "*.npmjs.org",
     "*.npmjs.com",
     "api.cloudflare.com",
+    "registry.cloudflare.com",
+    "docker.io",
+    "*.docker.io",
+    "*.docker.com",
   ];
-
-  static outboundByHost = {
-    "api.cloudflare.com": (
-      request: Request,
-      env: { CLOUDFLARE_API_TOKEN?: string }
-    ) => {
-      if (!env.CLOUDFLARE_API_TOKEN) {
-        return new Response("Cloudflare API token is not configured.", {
-          status: 500,
-        });
-      }
-
-      const headers = new Headers(request.headers);
-      headers.delete("Authorization");
-      headers.set("Authorization", `Bearer ${env.CLOUDFLARE_API_TOKEN}`);
-      return fetch(new Request(request, { headers }));
-    },
-  };
 }
+
+Sandbox.outboundByHost = {
+  "api.cloudflare.com": (
+    request: Request,
+    env: { CLOUDFLARE_API_TOKEN?: string }
+  ) => {
+    if (!env.CLOUDFLARE_API_TOKEN) {
+      return new Response("Cloudflare API token is not configured.", {
+        status: 500,
+      });
+    }
+
+    const headers = new Headers(request.headers);
+    headers.delete("Authorization");
+    headers.set("Authorization", `Bearer ${env.CLOUDFLARE_API_TOKEN.trim()}`);
+    return fetch(request, { headers });
+  },
+};
 
 export { ContainerProxy };
 
@@ -59,6 +63,7 @@ export async function prewarmSandbox(
       "/workspace/vendor/crazp"
     ),
     ensureWrangler(sandbox),
+    ensureDocker(sandbox),
   ]);
 }
 
@@ -67,6 +72,17 @@ async function ensureWrangler(sandbox: Sandbox) {
   if (!version.success) {
     throw new Error(
       `Wrangler is not available in the build sandbox:\n${version.stderr || version.stdout}`
+    );
+  }
+}
+
+async function ensureDocker(sandbox: Sandbox) {
+  const version = await sandbox.exec(
+    "sh -c 'i=0; until docker version >/dev/null 2>&1; do i=$((i+1)); [ \"$i\" -gt 75 ] && exit 1; sleep 0.2; done; docker version'"
+  );
+  if (!version.success) {
+    throw new Error(
+      `Docker is not available in the build sandbox:\n${version.stderr || version.stdout}`
     );
   }
 }

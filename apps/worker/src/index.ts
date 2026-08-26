@@ -127,6 +127,7 @@ function packageJsonFromDependencies(
   };
 }
 
+// TODO: subagents, tools, channels ...etc
 function createAgentDeploymentFramework(input: {
   agent: AgentDeploymentSource;
   skills: AgentDeploymentSkill[];
@@ -162,6 +163,7 @@ function createAgentDeploymentFramework(input: {
 
 export default defineAgent({
   name: ${JSON.stringify(agent.slug)},
+  slug: ${JSON.stringify(agent.slug)},
   model: ${JSON.stringify(agent.model)},
   maxSteps: ${agent.maxSteps},
   chatRecovery: ${JSON.stringify(agent.chatRecovery)},
@@ -555,7 +557,6 @@ async function handleDeploymentJob(
       .set({
         status: "active",
         workerUrl,
-        cloudflareAccountId: env.CLOUDFLARE_ACCOUNT_ID,
         finishedAt: new Date(),
       })
       .where(eq(agentDeployments.id, job.deploymentId));
