@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "cc8b50ee-56b1-40d4-bb9c-cb1fb72f908e",
+  "id": "6c71a346-f6e9-436c-beeb-5a1fb2a1d4b7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agents": {
@@ -137,10 +137,9 @@
         }
       },
       "indexes": {
-        "agents_organization_slug_idx": {
-          "name": "agents_organization_slug_idx",
+        "agents_slug_idx": {
+          "name": "agents_slug_idx",
           "columns": [
-            "organization_id",
             "slug"
           ],
           "isUnique": true

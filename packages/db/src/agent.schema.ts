@@ -89,10 +89,7 @@ export const agents = sqliteTable(
     updatedAt: updatedTimestamp("updated_at"),
   },
   (table) => [
-    uniqueIndex("agents_organization_slug_idx").on(
-      table.organizationId,
-      table.slug
-    ),
+    uniqueIndex("agents_slug_idx").on(table.slug),
     index("agents_organization_status_idx").on(
       table.organizationId,
       table.status

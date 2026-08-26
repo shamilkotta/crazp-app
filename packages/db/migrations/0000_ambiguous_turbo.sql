@@ -20,7 +20,7 @@ CREATE TABLE `agents` (
 	FOREIGN KEY (`created_by_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `agents_organization_slug_idx` ON `agents` (`organization_id`,`slug`);--> statement-breakpoint
+CREATE UNIQUE INDEX `agents_slug_idx` ON `agents` (`slug`);--> statement-breakpoint
 CREATE INDEX `agents_organization_status_idx` ON `agents` (`organization_id`,`status`);--> statement-breakpoint
 CREATE INDEX `agents_created_by_user_idx` ON `agents` (`created_by_user_id`);--> statement-breakpoint
 CREATE TABLE `agent_channels` (
