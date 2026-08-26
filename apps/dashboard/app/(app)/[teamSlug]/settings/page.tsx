@@ -1,4 +1,5 @@
 import { SettingsView } from "@/components/settings-view";
+import { listOrganizationMembers } from "@/lib/organization";
 import { requireTeam } from "@/lib/team";
 
 export default async function SettingsPage({
@@ -8,5 +9,14 @@ export default async function SettingsPage({
 }) {
   const { teamSlug } = await params;
   const { organization } = await requireTeam(teamSlug);
-  return <SettingsView organization={organization} />;
+  const { members, error: membersError } = await listOrganizationMembers(
+    organization.id
+  );
+  return (
+    <SettingsView
+      organization={organization}
+      members={members}
+      membersError={membersError}
+    />
+  );
 }

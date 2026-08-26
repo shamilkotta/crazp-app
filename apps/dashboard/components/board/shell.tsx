@@ -28,7 +28,7 @@ import {
   inputClass,
 } from "@/components/board/ui";
 
-const AGENT_OVERVIEW_SEGMENTS = new Set(
+const AGENT_OVERVIEW_SEGMENTS = new Set<string>(
   AGENT_OVERVIEW_TABS.filter((tab) => tab !== "overview")
 );
 export type ShellUser = {
@@ -206,9 +206,7 @@ function agentNavActive(pathname: string, href: string, agentSlug: string) {
   }
 
   const segment = pathname.slice(overviewBase.length + 1).split("/")[0] ?? "";
-  return AGENT_OVERVIEW_SEGMENTS.has(
-    segment as (typeof AGENT_OVERVIEW_TABS)[number]
-  );
+  return AGENT_OVERVIEW_SEGMENTS.has(segment);
 }
 
 function TeamSwitcher({

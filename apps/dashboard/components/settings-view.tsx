@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { authClient } from "@workspace/auth/client";
-import type { OrganizationSummary } from "@/lib/organization";
+import type {
+  OrganizationMember,
+  OrganizationSummary,
+} from "@/lib/organization";
 import {
   Empty,
   Field,
@@ -23,57 +27,22 @@ const settingsSections = [
 
 type Section = (typeof settingsSections)[number]["key"];
 
-type MemberRow = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-};
-
 export function SettingsView({
   organization,
+  members,
+  membersError,
 }: {
   organization: OrganizationSummary;
+  members: OrganizationMember[];
+  membersError: string | null;
 }) {
+  const router = useRouter();
   const [section, setSection] = useState<Section>("general");
   const [orgName, setOrgName] = useState(organization.name);
   const [invite, setInvite] = useState("");
-  const [members, setMembers] = useState<MemberRow[]>([]);
-  const [membersError, setMembersError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [saved, setSaved] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadMembers() {
-      try {
-        const result = await authClient.organization.listMembers({
-          query: { organizationId: organization.id },
-        });
-        if (cancelled) return;
-        if (result.error) {
-          setMembersError(result.error.message ?? "Could not load members.");
-          return;
-        }
-        const rows = (result.data?.members ?? []).map((member) => ({
-          id: member.id,
-          name: member.user.name || member.user.email,
-          email: member.user.email,
-          role: member.role,
-        }));
-        setMembers(rows);
-      } catch {
-        if (!cancelled) {
-          setMembersError("Could not load members.");
-        }
-      }
-    }
-    void loadMembers();
-    return () => {
-      cancelled = true;
-    };
-  }, [organization.id]);
 
   async function saveGeneral() {
     const next = orgName.trim();
@@ -90,6 +59,7 @@ export function SettingsView({
         return;
       }
       setSaved(true);
+      router.refresh();
     } finally {
       setPending(false);
     }
@@ -110,6 +80,7 @@ export function SettingsView({
         return;
       }
       setInvite("");
+      router.refresh();
     } finally {
       setPending(false);
     }

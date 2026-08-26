@@ -212,11 +212,20 @@ export function AgentDetailPage({
           onDelete={(type, id) =>
             mutate(deleteAgentResource, { resourceType: type, resourceId: id })
           }
-          onCreate={(title) =>
+          onCreate={(draft) =>
             mutate(createAgentTool, {
-              name: title,
-              kind: "inline",
-              description: "Custom tool",
+              name: draft.name,
+              kind: draft.kind,
+              description: draft.description ?? "",
+              sourcePath: draft.sourcePath ?? "",
+              configPath: draft.configPath ?? "",
+            })
+          }
+          onInstall={(item) =>
+            mutate(createAgentTool, {
+              name: item.name,
+              kind: "builtin",
+              description: item.summary,
             })
           }
         />
@@ -233,17 +242,25 @@ export function AgentDetailPage({
           onDelete={(type, id) =>
             mutate(deleteAgentResource, { resourceType: type, resourceId: id })
           }
-          onCreate={(draft) =>
-            mutate(createAgentSkill, {
+          onCreate={(draft) => {
+            const data = fields(teamSlug, agent.id, {
               name: draft.name,
               description: draft.description,
               body: draft.body,
               allowedTools: draft.allowedTools ?? "",
               license: draft.license ?? "",
               compatibility: draft.compatibility ?? "",
-              resources: JSON.stringify(draft.resources ?? []),
-            })
-          }
+            });
+            draft.resources?.forEach((resource, index) => {
+              data.set(`resourceKind:${index}`, resource.kind);
+              data.set(`resourcePath:${index}`, resource.path);
+              if (resource.mimeType) {
+                data.set(`resourceMimeType:${index}`, resource.mimeType);
+              }
+              data.set(`resourceFile:${index}`, resource.file);
+            });
+            startTransition(() => createAgentSkill(data));
+          }}
           onInstall={(item) =>
             mutate(createAgentSkill, {
               name: item.name,
@@ -265,10 +282,18 @@ export function AgentDetailPage({
           onDelete={(type, id) =>
             mutate(deleteAgentResource, { resourceType: type, resourceId: id })
           }
-          onCreate={(title) =>
+          onCreate={(draft) =>
             mutate(createAgentChannel, {
-              displayName: title,
-              provider: "web",
+              displayName: draft.displayName,
+              provider: draft.provider,
+              credentialLabel:
+                draft.config.credentialLabel ||
+                draft.config.apiKey ||
+                draft.config.botToken ||
+                draft.config.accessToken ||
+                "",
+              webhookUrl: draft.config.webhookUrl || "",
+              configJson: JSON.stringify(draft.config),
             })
           }
         />
@@ -285,11 +310,14 @@ export function AgentDetailPage({
           onDelete={(type, id) =>
             mutate(deleteAgentResource, { resourceType: type, resourceId: id })
           }
-          onCreate={(title) =>
+          onCreate={(draft) =>
             mutate(createAgentConnection, {
-              displayName: title,
-              provider: "custom",
-              authType: "api_key",
+              displayName: draft.displayName,
+              provider: draft.provider,
+              authType: draft.authType,
+              scopes: draft.scopes ?? draft.config?.scopes ?? "",
+              credentialLabel:
+                draft.credentialLabel ?? draft.config?.credentialLabel ?? "",
             })
           }
         />
@@ -306,12 +334,22 @@ export function AgentDetailPage({
           onDelete={(type, id) =>
             mutate(deleteAgentResource, { resourceType: type, resourceId: id })
           }
-          onCreate={(title) =>
+          onCreate={(draft) =>
             mutate(createAgentSubagent, {
-              displayName: title,
-              description: "Custom specialist",
-              model: agent.model,
-              maxSteps: String(agent.maxSteps),
+              name: draft.name,
+              description: draft.description ?? "",
+              instructions: draft.instructions ?? "",
+              model: draft.model,
+              maxSteps: String(draft.maxSteps),
+            })
+          }
+          onInstall={(item, draft) =>
+            mutate(createAgentSubagent, {
+              name: item.name,
+              description: item.summary,
+              instructions: item.description,
+              model: draft?.model ?? agent.model,
+              maxSteps: String(draft?.maxSteps ?? agent.maxSteps),
             })
           }
         />

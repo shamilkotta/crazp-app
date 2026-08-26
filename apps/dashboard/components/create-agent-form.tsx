@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { createAgent } from "@/lib/actions/agents";
-import { slugifyAgentName } from "@/lib/agents";
+import { slugifyAgentName } from "@/lib/display";
 import { templates } from "@/lib/catalog";
 import {
   Field,

@@ -6,12 +6,18 @@ import { useEffect, useMemo, useState } from "react";
 import type { AgentDetailData } from "@/lib/agents";
 import { catalog, catalogSourceLabel, type CatalogItem } from "@/lib/catalog";
 import { formatCount } from "@/lib/display";
+import {
+  MAX_SKILL_RESOURCE_BYTES,
+  MAX_SKILL_RESOURCES,
+  type SkillResourceKind,
+} from "@/lib/skill-resources";
 import { MarkdownEditor } from "@/components/board/markdown-editor";
 import {
   Empty,
   Field,
   GhostButton,
   PrimaryButton,
+  ResourceCard,
   Surface,
   TextButton,
   inputClass,
@@ -28,15 +34,12 @@ type ResourceKind =
   | "scheduledTask"
   | "workflowTask";
 
-export type SkillResourceKind = "script" | "reference" | "asset";
-
 export type SkillResourceDraft = {
   kind: SkillResourceKind;
   path: string;
   mimeType?: string;
-  encoding: "text" | "base64";
-  content: string;
   size: number;
+  file: File;
 };
 
 export type SkillDraft = {
@@ -158,7 +161,7 @@ export function SkillsTab({
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1.65fr)_minmax(17rem,1fr)] lg:items-start lg:gap-0">
       <div
-        className="grid grid-cols-2 rounded-lg bg-muted p-1 lg:hidden"
+        className="flex items-center gap-1.5 lg:hidden"
         role="tablist"
         aria-label="Skills sections"
       >
@@ -167,9 +170,10 @@ export function SkillsTab({
           role="tab"
           aria-selected={mobileSection === "added"}
           className={cn(
-            "rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground",
-            mobileSection === "added" &&
-              "bg-background text-foreground shadow-sm"
+            "rounded-md px-2.5 py-1 text-[12px] whitespace-nowrap transition-colors",
+            mobileSection === "added"
+              ? "bg-muted font-medium text-foreground"
+              : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
           )}
           onClick={() => showMobileSection("added")}
         >
@@ -180,9 +184,10 @@ export function SkillsTab({
           role="tab"
           aria-selected={mobileSection === "catalog"}
           className={cn(
-            "rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground",
-            mobileSection === "catalog" &&
-              "bg-background text-foreground shadow-sm"
+            "rounded-md px-2.5 py-1 text-[12px] whitespace-nowrap transition-colors",
+            mobileSection === "catalog"
+              ? "bg-muted font-medium text-foreground"
+              : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
           )}
           onClick={() => showMobileSection("catalog")}
         >
@@ -219,103 +224,93 @@ export function SkillsTab({
           </PrimaryButton>
         </div>
 
-        {creating ? (
-          <div className="lg:hidden">
-            <SkillCreateForm
-              pending={pending}
-              backLabel="Skills"
-              onBack={() => setAside({ kind: "catalog" })}
-              onCreate={handleCreate}
-            />
-          </div>
-        ) : (
-          <>
-            <SkillSearch
-              value={addedQuery}
-              onChange={setAddedQuery}
-              placeholder="Search added skills…"
-            />
+        <div className={cn(creating ? "block" : "hidden", "lg:hidden")}>
+          <SkillCreateForm
+            pending={pending}
+            backLabel="Skills"
+            onBack={() => setAside({ kind: "catalog" })}
+            onCreate={handleCreate}
+          />
+        </div>
 
-            {agent.skills.length === 0 ? (
-              <Surface>
-                <Empty
-                  title="No skills"
-                  body="No skills yet. A tone-of-voice skill is usually the first one — create one, or add from the catalog."
-                />
-              </Surface>
-            ) : addedSkills.length === 0 ? (
-              <Surface>
-                <Empty
-                  title="No matching skills"
-                  body="Try a different search, or clear the filter to see every skill on this agent."
-                />
-              </Surface>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {addedSkills.map((item) => {
-                  const isSelected =
-                    selected?.name.toLowerCase() === item.name.toLowerCase();
-                  return (
-                    <Surface
-                      key={item.id}
-                      className={cn(
-                        "p-4",
-                        !item.enabled && "opacity-50",
-                        isSelected && "ring-1 ring-foreground/15"
-                      )}
-                    >
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
-                        <button
-                          type="button"
-                          className="min-w-0 flex-1 text-left"
-                          onClick={() => {
-                            setMobileSection("catalog");
-                            setAside({
-                              kind: "preview",
-                              preview: previewFromAdded(item),
-                            });
-                          }}
+        <div className={cn(creating ? "hidden lg:block" : "block")}>
+          <SkillSearch
+            value={addedQuery}
+            onChange={setAddedQuery}
+            placeholder="Search skills…"
+          />
+
+          {agent.skills.length === 0 ? (
+            <Surface>
+              <Empty
+                title="No skills"
+                body="No skills yet. A tone-of-voice skill is usually the first one — create one, or add from the catalog."
+              />
+            </Surface>
+          ) : addedSkills.length === 0 ? (
+            <Surface>
+              <Empty
+                title="No matching skills"
+                body="Try a different search, or clear the filter to see every skill on this agent."
+              />
+            </Surface>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {addedSkills.map((item) => {
+                const isSelected =
+                  selected?.name.toLowerCase() === item.name.toLowerCase();
+                return (
+                  <ResourceCard
+                    key={item.id}
+                    muted={!item.enabled}
+                    selected={isSelected}
+                    selectLabel={`Open ${item.name}`}
+                    bodyClassName="flex-col gap-2 sm:flex-row sm:items-start sm:gap-3"
+                    onSelect={() => {
+                      setMobileSection("catalog");
+                      setAside({
+                        kind: "preview",
+                        preview: previewFromAdded(item),
+                      });
+                    }}
+                    actions={
+                      <>
+                        <TextButton
+                          disabled={pending}
+                          onClick={() => onToggle("skill", item.id)}
                         >
-                          <p className="font-medium hover:underline">
-                            {item.name}
-                          </p>
-                          <p className="truncate text-[12px] text-muted-foreground">
-                            {item.allowedTools ?? "all tools"}
-                          </p>
-                          {item.description ? (
-                            <p className="mt-1 line-clamp-2 text-[12px] text-muted-foreground">
-                              {item.description}
-                            </p>
-                          ) : null}
-                        </button>
-                        <div className="flex shrink-0 items-center gap-3">
-                          <TextButton
-                            disabled={pending}
-                            onClick={() => onToggle("skill", item.id)}
-                          >
-                            {item.enabled ? "Enabled" : "Muted"}
-                          </TextButton>
-                          <TextButton
-                            className="hover:text-destructive"
-                            disabled={pending}
-                            onClick={() => onDelete("skill", item.id)}
-                          >
-                            Remove
-                          </TextButton>
-                        </div>
-                      </div>
-                    </Surface>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
+                          {item.enabled ? "Enabled" : "Muted"}
+                        </TextButton>
+                        <TextButton
+                          className="hover:text-destructive"
+                          disabled={pending}
+                          onClick={() => onDelete("skill", item.id)}
+                        >
+                          Remove
+                        </TextButton>
+                      </>
+                    }
+                  >
+                    <p className="font-medium">{item.name}</p>
+                    <p className="truncate text-[12px] text-muted-foreground">
+                      {item.allowedTools ?? "all tools"}
+                    </p>
+                    {item.description ? (
+                      <p className="mt-1 line-clamp-2 text-[12px] text-muted-foreground">
+                        {item.description}
+                      </p>
+                    ) : null}
+                  </ResourceCard>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </section>
 
       <aside
         className={cn(
-          "flex-col lg:sticky lg:top-[53px] lg:flex lg:max-h-[calc(100dvh-3.8rem)] lg:overflow-hidden lg:border-l lg:pt-2 lg:pl-6",
+          "flex-col lg:sticky lg:top-[53px] lg:flex lg:h-[calc(100dvh-3.8rem)] lg:overflow-hidden lg:border-l lg:pt-2 lg:pl-6",
           mobileSection === "catalog" ? "flex" : "hidden"
         )}
         role="tabpanel"
@@ -354,52 +349,43 @@ export function SkillsTab({
                   const installing = installingIds.has(item.id);
                   const isSelected = selected?.catalogItem?.id === item.id;
                   return (
-                    <Surface
+                    <ResourceCard
                       key={item.id}
-                      className={cn(
-                        "p-4",
-                        isSelected && "ring-1 ring-foreground/15"
-                      )}
-                    >
-                      <div className="flex items-start gap-3">
-                        <button
-                          type="button"
-                          className="min-w-0 flex-1 text-left"
-                          onClick={() =>
-                            setAside({
-                              kind: "preview",
-                              preview: previewFromCatalog(item),
-                            })
-                          }
-                        >
-                          <p className="font-medium hover:underline">
-                            {item.name}
-                          </p>
-                          <p className="mt-0.5 line-clamp-2 text-[12px] text-muted-foreground">
-                            {item.summary}
-                          </p>
-                          <p className="mt-1 text-[11px] text-muted-foreground">
-                            {item.source === "builtin"
-                              ? catalogSourceLabel(item.source)
-                              : item.author.handle}{" "}
-                            · {formatCount(item.installs)}
-                          </p>
-                        </button>
-                        {added ? (
-                          <span className="mt-0.5 shrink-0 text-[12px] text-muted-foreground">
+                      selected={isSelected}
+                      selectLabel={`Open ${item.name}`}
+                      onSelect={() =>
+                        setAside({
+                          kind: "preview",
+                          preview: previewFromCatalog(item),
+                        })
+                      }
+                      actions={
+                        added ? (
+                          <span className="mt-0.5 text-[12px] text-muted-foreground">
                             Added
                           </span>
                         ) : (
                           <GhostButton
-                            className="mt-0.5 h-7 shrink-0 px-2"
+                            className="mt-0.5 h-7 px-2"
                             disabled={installing}
                             onClick={() => handleInstall(item)}
                           >
                             {installing ? "Adding…" : "Add"}
                           </GhostButton>
-                        )}
-                      </div>
-                    </Surface>
+                        )
+                      }
+                    >
+                      <p className="font-medium">{item.name}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[12px] text-muted-foreground">
+                        {item.summary}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {item.source === "builtin"
+                          ? catalogSourceLabel(item.source)
+                          : item.author.handle}{" "}
+                        · {formatCount(item.installs)}
+                      </p>
+                    </ResourceCard>
                   );
                 })}
               </div>
@@ -444,12 +430,24 @@ type SkillPreview = {
   origin: "catalog" | "added";
   name: string;
   description: string;
+  body?: string;
   eyebrow: string;
   author?: string;
   version?: string;
   installs?: number;
   tags: string[];
   allowedTools?: string | null;
+  license?: string | null;
+  compatibility?: string | null;
+  enabled?: boolean;
+  metadataJson?: Record<string, unknown> | null;
+  resources: Array<{
+    id: string;
+    path: string;
+    kind: string;
+    mimeType: string | null;
+    size: number;
+  }>;
   catalogItem: CatalogItem | null;
 };
 
@@ -464,6 +462,7 @@ function previewFromCatalog(item: CatalogItem): SkillPreview {
     version: item.version,
     installs: item.installs,
     tags: item.tags,
+    resources: [],
     catalogItem: item,
   };
 }
@@ -476,18 +475,32 @@ function previewFromAdded(
       item.kind === "skill" &&
       item.name.toLowerCase() === skill.name.toLowerCase()
   );
-  if (match) {
-    return { ...previewFromCatalog(match), origin: "added", id: skill.id };
-  }
   return {
     id: skill.id,
     origin: "added",
     name: skill.name,
-    description: skill.body || skill.description,
-    eyebrow: "skill · this agent",
-    tags: [],
+    description: skill.description,
+    body: skill.body,
+    eyebrow: match
+      ? `skill · ${catalogSourceLabel(match.source)}`
+      : "skill · this agent",
+    author: match?.author.name,
+    version: match?.version,
+    installs: match?.installs,
+    tags: match?.tags ?? [],
     allowedTools: skill.allowedTools,
-    catalogItem: null,
+    license: skill.license,
+    compatibility: skill.compatibility,
+    enabled: skill.enabled,
+    metadataJson: skill.metadataJson,
+    resources: skill.resources.map((resource) => ({
+      id: resource.id,
+      path: resource.path,
+      kind: resource.kind,
+      mimeType: resource.mimeType,
+      size: resource.size,
+    })),
+    catalogItem: match ?? null,
   };
 }
 
@@ -514,8 +527,6 @@ function SkillSearch({
 }
 
 type SkillResourceItem = SkillResourceDraft & { id: string };
-
-const MAX_RESOURCE_BYTES = 512 * 1024;
 
 const RESOURCE_GROUPS: Array<{
   kind: SkillResourceKind;
@@ -547,6 +558,7 @@ const RESOURCE_GROUPS: Array<{
   },
 ];
 
+// TODO: check how path are cofigured, revisit this
 function safeFileName(name: string) {
   const base = name.split(/[/\\]/).pop() ?? "file";
   return base.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/^\.+/g, "") || "file";
@@ -567,27 +579,6 @@ function resourcePath(folder: string, filename: string, used: Set<string>) {
   return next;
 }
 
-function shouldReadAsText(file: File, kind: SkillResourceKind) {
-  if (kind === "script" || kind === "reference") return true;
-  if (file.type.startsWith("text/") || file.type === "application/json") {
-    return true;
-  }
-  return /\.(md|txt|json|ya?ml|csv|xml|svg|html)$/i.test(file.name);
-}
-
-function readAsBase64(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result ?? "");
-      const comma = result.indexOf(",");
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
-
 function formatBytes(size: number) {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
@@ -603,7 +594,7 @@ function SkillResourceFields({
 }) {
   const [error, setError] = useState<string | null>(null);
 
-  async function addFiles(
+  function addFiles(
     kind: SkillResourceKind,
     folder: string,
     files: FileList | null
@@ -614,27 +605,23 @@ function SkillResourceFields({
     const next: SkillResourceItem[] = [];
 
     for (const file of Array.from(files)) {
-      if (file.size > MAX_RESOURCE_BYTES) {
+      if (file.size > MAX_SKILL_RESOURCE_BYTES) {
         setError(`${file.name} is larger than 512 KB.`);
         continue;
       }
-      if (value.length + next.length >= 20) {
-        setError("You can attach up to 20 files.");
+      if (value.length + next.length >= MAX_SKILL_RESOURCES) {
+        setError(`You can attach up to ${MAX_SKILL_RESOURCES} files.`);
         break;
       }
       const path = resourcePath(folder, file.name, used);
       used.add(path);
-      const encoding = shouldReadAsText(file, kind) ? "text" : "base64";
-      const content =
-        encoding === "text" ? await file.text() : await readAsBase64(file);
       next.push({
         id: crypto.randomUUID(),
         kind,
         path,
         mimeType: file.type || undefined,
-        encoding,
-        content,
         size: file.size,
+        file,
       });
     }
 
@@ -658,7 +645,7 @@ function SkillResourceFields({
                   accept={group.accept || undefined}
                   className="sr-only"
                   onChange={(event) => {
-                    void addFiles(group.kind, group.folder, event.target.files);
+                    addFiles(group.kind, group.folder, event.target.files);
                     event.target.value = "";
                   }}
                 />
@@ -740,9 +727,8 @@ function SkillCreateForm({
         kind: item.kind,
         path: item.path,
         mimeType: item.mimeType,
-        encoding: item.encoding,
-        content: item.content,
         size: item.size,
+        file: item.file,
       })),
     });
   }
@@ -755,7 +741,7 @@ function SkillCreateForm({
         submit();
       }}
     >
-      <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
+      <div className="mb-3 shrink-0">
         <button
           type="button"
           onClick={onBack}
@@ -764,9 +750,6 @@ function SkillCreateForm({
           <ChevronLeft className="size-3.5" />
           {backLabel}
         </button>
-        <PrimaryButton type="submit" disabled={!canSubmit || pending}>
-          {pending ? "Creating…" : "Create"}
-        </PrimaryButton>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:overflow-y-auto">
         <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
@@ -844,6 +827,15 @@ function SkillCreateForm({
           />
         </Field>
       </div>
+      <div className="mt-3 shrink-0">
+        <PrimaryButton
+          type="submit"
+          className="w-full"
+          disabled={!canSubmit || pending}
+        >
+          {pending ? "Creating…" : "Create"}
+        </PrimaryButton>
+      </div>
     </form>
   );
 }
@@ -861,6 +853,39 @@ function SkillOverlay({
   onBack: () => void;
   onInstall?: () => void;
 }) {
+  const metaEntries = [
+    preview.author ? { label: "Author", value: preview.author } : null,
+    preview.version ? { label: "Version", value: preview.version } : null,
+    preview.installs != null
+      ? { label: "Installs", value: formatCount(preview.installs) }
+      : null,
+    preview.allowedTools
+      ? { label: "Tools", value: preview.allowedTools }
+      : null,
+    preview.license ? { label: "License", value: preview.license } : null,
+    preview.compatibility
+      ? { label: "Compatibility", value: preview.compatibility }
+      : null,
+    preview.enabled != null
+      ? { label: "Status", value: preview.enabled ? "Enabled" : "Muted" }
+      : null,
+  ].filter((entry): entry is { label: string; value: string } => entry != null);
+
+  const metadataEntries = preview.metadataJson
+    ? Object.entries(preview.metadataJson).filter(
+        ([, value]) => value != null && value !== ""
+      )
+    : [];
+
+  const resourcesByKind = RESOURCE_GROUPS.map((group) => ({
+    ...group,
+    items: preview.resources.filter((item) => item.kind === group.kind),
+  })).filter((group) => group.items.length > 0);
+
+  const otherResources = preview.resources.filter(
+    (item) => !RESOURCE_GROUPS.some((group) => group.kind === item.kind)
+  );
+
   return (
     <div className="flex flex-col bg-background lg:absolute lg:inset-0">
       <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
@@ -891,41 +916,23 @@ function SkillOverlay({
         <h3 className="mt-2 text-[16px] font-medium tracking-tight">
           {preview.name}
         </h3>
-        <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-          {preview.description}
-        </p>
-        {preview.author || preview.version || preview.installs != null ? (
-          <dl className="mt-5 grid grid-cols-2 gap-3 text-[12px]">
-            {preview.author ? (
-              <div>
-                <dt className="text-muted-foreground">Author</dt>
-                <dd className="mt-1">{preview.author}</dd>
-              </div>
-            ) : null}
-            {preview.version ? (
-              <div>
-                <dt className="text-muted-foreground">Version</dt>
-                <dd className="mt-1">{preview.version}</dd>
-              </div>
-            ) : null}
-            {preview.installs != null ? (
-              <div>
-                <dt className="text-muted-foreground">Installs</dt>
-                <dd className="mt-1">{formatCount(preview.installs)}</dd>
-              </div>
-            ) : null}
-            {preview.allowedTools ? (
-              <div>
-                <dt className="text-muted-foreground">Tools</dt>
-                <dd className="mt-1">{preview.allowedTools}</dd>
-              </div>
-            ) : null}
-          </dl>
-        ) : preview.allowedTools ? (
-          <p className="mt-5 text-[12px] text-muted-foreground">
-            Tools: {preview.allowedTools}
+        {preview.description ? (
+          <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+            {preview.description}
           </p>
         ) : null}
+
+        {metaEntries.length > 0 ? (
+          <dl className="mt-5 grid grid-cols-2 gap-3 text-[12px]">
+            {metaEntries.map((entry) => (
+              <div key={entry.label}>
+                <dt className="text-muted-foreground">{entry.label}</dt>
+                <dd className="mt-1 wrap-break-word">{entry.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+
         {preview.tags.length > 0 ? (
           <div className="mt-5 flex flex-wrap gap-1.5">
             {preview.tags.map((tag) => (
@@ -936,6 +943,87 @@ function SkillOverlay({
                 {tag}
               </span>
             ))}
+          </div>
+        ) : null}
+
+        {preview.body ? (
+          <div className="mt-5">
+            <p className="text-[12px] font-medium text-muted-foreground">
+              Body
+            </p>
+            <pre className="mt-1.5 max-h-112 overflow-auto rounded-lg border border-border bg-muted/30 p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+              {preview.body}
+            </pre>
+          </div>
+        ) : null}
+
+        {resourcesByKind.length > 0 || otherResources.length > 0 ? (
+          <div className="mt-5 flex flex-col gap-4">
+            <p className="text-[12px] font-medium text-muted-foreground">
+              Resources
+            </p>
+            {resourcesByKind.map((group) => (
+              <div key={group.kind}>
+                <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                  {group.label}
+                </p>
+                <ul className="mt-1.5 flex flex-col gap-1.5">
+                  {group.items.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5"
+                    >
+                      <span className="min-w-0 flex-1 truncate font-mono text-[11px]">
+                        {item.path}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        {formatBytes(item.size)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+            {otherResources.length > 0 ? (
+              <div>
+                <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                  Files
+                </p>
+                <ul className="mt-1.5 flex flex-col gap-1.5">
+                  {otherResources.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5"
+                    >
+                      <span className="min-w-0 flex-1 truncate font-mono text-[11px]">
+                        {item.path}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        {formatBytes(item.size)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {metadataEntries.length > 0 ? (
+          <div className="mt-5">
+            <p className="text-[12px] font-medium text-muted-foreground">
+              Metadata
+            </p>
+            <dl className="mt-1.5 grid grid-cols-2 gap-3 text-[12px]">
+              {metadataEntries.map(([key, value]) => (
+                <div key={key}>
+                  <dt className="text-muted-foreground">{key}</dt>
+                  <dd className="mt-1 font-mono text-[11px] wrap-break-word">
+                    {typeof value === "string" ? value : JSON.stringify(value)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
         ) : null}
       </div>

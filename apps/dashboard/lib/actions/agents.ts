@@ -1,29 +1,35 @@
 "use server";
 
+import type { R2Bucket } from "@cloudflare/workers-types";
 import { revalidatePath } from "next/cache";
+import { cache } from "react";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import {
-  agentChannels,
-  agentConnections,
-  agentDeploymentEvents,
-  agentDeployments,
-  agentScheduledTasks,
-  agentSkillResources,
-  agentSkills,
-  agentSubagents,
-  agentTools,
-  agentWorkflowTasks,
+  channels as agentChannels,
+  connections as agentConnections,
+  deploymentEvents as agentDeploymentEvents,
+  deployments as agentDeployments,
+  scheduledTasks as agentScheduledTasks,
+  skillResources as agentSkillResources,
+  skills as agentSkills,
+  subagents as agentSubagents,
+  tools as agentTools,
+  workflowTasks as agentWorkflowTasks,
   agents,
 } from "@workspace/db/schema";
-import { allocateAgentSlug, slugifyAgentName } from "@/lib/agents";
+import { allocateAgentSlug, allocateSubagentSlug } from "@/lib/agents";
 import { getDb } from "@/lib/db";
-import {
-  findOrganizationBySlug,
-  listUserOrganizations,
-} from "@/lib/organization";
 import { requireSession } from "@/lib/session";
+import { getTeamContext } from "@/lib/team";
+import {
+  MAX_SKILL_RESOURCE_BYTES,
+  MAX_SKILL_RESOURCES,
+  SKILL_RESOURCE_PATH_PATTERN,
+  skillResourceEncoding,
+  type SkillResourceKind,
+} from "@/lib/skill-resources";
 
 const createAgentSchema = z.object({
   teamSlug: z.string().trim().min(1, "Organization not found."),
@@ -61,20 +67,6 @@ const createToolSchema = agentActionSchema.extend({
   configPath: z.string().trim().max(300).optional(),
 });
 
-const skillResourceSchema = z.object({
-  kind: z.enum(["script", "reference", "asset"]),
-  path: z
-    .string()
-    .trim()
-    .min(1)
-    .max(300)
-    .regex(/^(scripts|references|assets)\/[A-Za-z0-9._-]+$/),
-  mimeType: z.string().trim().max(200).optional(),
-  encoding: z.enum(["text", "base64"]),
-  content: z.string().max(2_000_000),
-  size: z.number().int().min(0).max(1_048_576),
-});
-
 const createSkillSchema = agentActionSchema.extend({
   name: z.string().trim().min(1).max(64),
   description: z.string().trim().max(1_024).optional(),
@@ -82,16 +74,29 @@ const createSkillSchema = agentActionSchema.extend({
   allowedTools: z.string().trim().max(1_000).optional(),
   license: z.string().trim().max(160).optional(),
   compatibility: z.string().trim().max(500).optional(),
-  resources: z.array(skillResourceSchema).max(20).optional(),
 });
 
 const createSubagentSchema = agentActionSchema.extend({
-  displayName: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(1_000).optional(),
   instructions: z.string().trim().max(20_000).optional(),
   model: z.string().trim().min(1).max(160),
   maxSteps: z.coerce.number().int().min(1).max(1_000),
 });
+
+const jsonObjectSchema = z
+  .string()
+  .trim()
+  .max(20_000)
+  .transform((value, ctx) => {
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      ctx.addIssue({ code: "custom", message: "Invalid JSON." });
+      return z.NEVER;
+    }
+  })
+  .pipe(z.record(z.string(), z.unknown()));
 
 const createChannelSchema = agentActionSchema.extend({
   provider: z.enum([
@@ -105,6 +110,7 @@ const createChannelSchema = agentActionSchema.extend({
   displayName: z.string().trim().min(1).max(80),
   credentialLabel: z.string().trim().max(160).optional(),
   webhookUrl: z.string().trim().max(500).optional(),
+  configJson: jsonObjectSchema.optional().default({}),
 });
 
 const createConnectionSchema = agentActionSchema.extend({
@@ -163,21 +169,77 @@ type DeploymentEnv = {
   AGENT_DEPLOYMENT_QUEUE?: DeploymentQueue;
 };
 
+type SkillAssetEnv = {
+  AGENT_ASSET_BUCKET?: R2Bucket;
+};
+
+type SkillResourceUpload = {
+  kind: SkillResourceKind;
+  path: string;
+  mimeType?: string;
+  encoding: "text" | "base64";
+  size: number;
+  body: Uint8Array;
+};
+
 function optionalString(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
   return text || undefined;
 }
 
-function parseSkillResources(value: FormDataEntryValue | null) {
-  const text = optionalString(value);
-  if (!text) return [];
-  try {
-    const parsed: unknown = JSON.parse(text);
-    const result = z.array(skillResourceSchema).max(20).safeParse(parsed);
-    return result.success ? result.data : [];
-  } catch {
-    return [];
+const skillResourceKindSchema = z.enum(["script", "reference", "asset"]);
+
+async function parseSkillResourceUploads(
+  formData: FormData
+): Promise<SkillResourceUpload[] | null> {
+  const pending: Array<{
+    kind: SkillResourceKind;
+    path: string;
+    mimeType?: string;
+    encoding: "text" | "base64";
+    size: number;
+    file: File;
+  }> = [];
+
+  for (let index = 0; index < MAX_SKILL_RESOURCES; index++) {
+    const file = formData.get(`resourceFile:${index}`);
+    if (!(file instanceof File)) {
+      break;
+    }
+    if (file.size <= 0 || file.size > MAX_SKILL_RESOURCE_BYTES) {
+      return null;
+    }
+
+    const kind = skillResourceKindSchema.safeParse(
+      optionalString(formData.get(`resourceKind:${index}`))
+    );
+    const path = optionalString(formData.get(`resourcePath:${index}`)) ?? "";
+    const mimeType = optionalString(formData.get(`resourceMimeType:${index}`));
+
+    if (!kind.success || !SKILL_RESOURCE_PATH_PATTERN.test(path)) {
+      return null;
+    }
+
+    pending.push({
+      kind: kind.data,
+      path,
+      mimeType: mimeType || file.type || undefined,
+      encoding: skillResourceEncoding(kind.data, file),
+      size: file.size,
+      file,
+    });
   }
+
+  return Promise.all(
+    pending.map(async (resource) => ({
+      kind: resource.kind,
+      path: resource.path,
+      mimeType: resource.mimeType,
+      encoding: resource.encoding,
+      size: resource.size,
+      body: new Uint8Array(await resource.file.arrayBuffer()),
+    }))
+  );
 }
 
 function skillNameSlug(name: string) {
@@ -215,6 +277,15 @@ function buildSkillRawContent(input: {
   return `${lines.join("\n")}\n`;
 }
 
+function createSkillResourceR2Key(input: {
+  organizationId: string;
+  agentId: string;
+  skillId: string;
+  path: string;
+}) {
+  return `organizations/${input.organizationId}/agents/${input.agentId}/skills/${input.skillId}/${input.path}`;
+}
+
 function checked(formData: FormData, key: string) {
   return formData.get(key) === "on" || formData.get(key) === "true";
 }
@@ -231,11 +302,7 @@ function parseWorkflowSteps(value: string) {
 }
 
 async function getAuthorizedAgent(teamSlug: string, agentId: string) {
-  const [, organizations] = await Promise.all([
-    requireSession(),
-    listUserOrganizations(),
-  ]);
-  const organization = findOrganizationBySlug(organizations, teamSlug);
+  const { organization } = await getTeamContext(teamSlug);
   if (!organization) {
     return null;
   }
@@ -246,6 +313,7 @@ async function getAuthorizedAgent(teamSlug: string, agentId: string) {
       id: agents.id,
       slug: agents.slug,
       organizationId: agents.organizationId,
+      status: agents.status,
     })
     .from(agents)
     .where(
@@ -261,8 +329,12 @@ function revalidateAgentPaths(teamSlug: string, agentSlug: string) {
   revalidatePath(`/${teamSlug}/agents/${agentSlug}`, "layout");
 }
 
+const getAsyncCloudflareContext = cache(() =>
+  getCloudflareContext({ async: true })
+);
+
 async function enqueueDeploymentJob(payload: DeploymentQueueMessage) {
-  const ctx = await getCloudflareContext({ async: true });
+  const ctx = await getAsyncCloudflareContext();
   const queue = (ctx.env as DeploymentEnv).AGENT_DEPLOYMENT_QUEUE;
   if (!queue) {
     return false;
@@ -272,10 +344,19 @@ async function enqueueDeploymentJob(payload: DeploymentQueueMessage) {
   return true;
 }
 
+async function getSkillAssetBucket() {
+  const ctx = await getAsyncCloudflareContext();
+  const bucket = (ctx.env as SkillAssetEnv).AGENT_ASSET_BUCKET;
+  if (!bucket) {
+    throw new Error("Agent asset storage is not configured.");
+  }
+  return bucket;
+}
+
 export async function createAgent(
   input: CreateAgentInput
 ): Promise<CreateAgentResult> {
-  const session = await requireSession();
+  await requireSession();
   const parsed = createAgentSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -286,13 +367,12 @@ export async function createAgent(
 
   const { teamSlug, name, instructions } = parsed.data;
 
-  const organizations = await listUserOrganizations();
-  const organization = findOrganizationBySlug(organizations, teamSlug);
+  const { session, organization } = await getTeamContext(teamSlug);
   if (!organization) {
     return { ok: false, error: "Organization not found." };
   }
 
-  const slug = await allocateAgentSlug(organization.id, name);
+  const slug = await allocateAgentSlug(name);
   const id = crypto.randomUUID();
   const db = getDb();
 
@@ -345,7 +425,12 @@ export async function updateAgentSetup(formData: FormData) {
       chatRecovery: parsed.data.chatRecovery,
       extensions: parsed.data.extensions,
     })
-    .where(eq(agents.id, parsed.data.agentId));
+    .where(
+      and(
+        eq(agents.id, authorized.agent.id),
+        eq(agents.organizationId, authorized.organization.id)
+      )
+    );
 
   revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
@@ -367,7 +452,12 @@ export async function archiveAgent(formData: FormData) {
   await getDb()
     .update(agents)
     .set({ status: "archived" })
-    .where(eq(agents.id, parsed.data.agentId));
+    .where(
+      and(
+        eq(agents.id, authorized.agent.id),
+        eq(agents.organizationId, authorized.organization.id)
+      )
+    );
 
   revalidatePath(`/${parsed.data.teamSlug}`);
 }
@@ -386,18 +476,17 @@ export async function pauseOrResumeAgent(formData: FormData) {
   );
   if (!authorized) return;
 
-  const [agent] = await getDb()
-    .select({ status: agents.status })
-    .from(agents)
-    .where(eq(agents.id, parsed.data.agentId))
-    .limit(1);
-
-  if (!agent) return;
-
   await getDb()
     .update(agents)
-    .set({ status: agent.status === "paused" ? "active" : "paused" })
-    .where(eq(agents.id, parsed.data.agentId));
+    .set({
+      status: authorized.agent.status === "paused" ? "active" : "paused",
+    })
+    .where(
+      and(
+        eq(agents.id, authorized.agent.id),
+        eq(agents.organizationId, authorized.organization.id)
+      )
+    );
 
   revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
 }
@@ -445,9 +534,11 @@ export async function createAgentSkill(formData: FormData) {
     allowedTools: optionalString(formData.get("allowedTools")),
     license: optionalString(formData.get("license")),
     compatibility: optionalString(formData.get("compatibility")),
-    resources: parseSkillResources(formData.get("resources")),
   });
   if (!parsed.success) return;
+
+  const resources = await parseSkillResourceUploads(formData);
+  if (!resources) return;
 
   const authorized = await getAuthorizedAgent(
     parsed.data.teamSlug,
@@ -459,39 +550,82 @@ export async function createAgentSkill(formData: FormData) {
   const body = parsed.data.body ?? "";
   const skillId = crypto.randomUUID();
   const db = getDb();
+  const bucket = resources.length > 0 ? await getSkillAssetBucket() : null;
+  const resourceUploads = resources.map((resource) => ({
+    resource,
+    row: {
+      id: crypto.randomUUID(),
+      skillId,
+      path: resource.path,
+      kind: resource.kind,
+      encoding: resource.encoding,
+      mimeType: resource.mimeType,
+      size: resource.size,
+      key: createSkillResourceR2Key({
+        organizationId: authorized.organization.id,
+        agentId: authorized.agent.id,
+        skillId,
+        path: resource.path,
+      }),
+    },
+  }));
 
-  await db.insert(agentSkills).values({
-    id: skillId,
-    agentId: parsed.data.agentId,
-    name: parsed.data.name,
-    description,
-    body,
-    rawContent: buildSkillRawContent({
+  let skillInserted = false;
+  try {
+    if (bucket) {
+      await Promise.all(
+        resourceUploads.map(({ resource, row }) =>
+          bucket.put(row.key, resource.body, {
+            customMetadata: {
+              organizationId: authorized.organization.id,
+              agentId: authorized.agent.id,
+              skillId,
+              kind: resource.kind,
+              sourcePath: resource.path,
+            },
+            httpMetadata: {
+              contentType: resource.mimeType ?? "application/octet-stream",
+            },
+          })
+        )
+      );
+    }
+
+    await db.insert(agentSkills).values({
+      id: skillId,
+      agentId: parsed.data.agentId,
       name: parsed.data.name,
       description,
       body,
+      rawContent: buildSkillRawContent({
+        name: parsed.data.name,
+        description,
+        body,
+        license: parsed.data.license,
+        compatibility: parsed.data.compatibility,
+        allowedTools: parsed.data.allowedTools,
+      }),
+      allowedTools: parsed.data.allowedTools,
       license: parsed.data.license,
       compatibility: parsed.data.compatibility,
-      allowedTools: parsed.data.allowedTools,
-    }),
-    allowedTools: parsed.data.allowedTools,
-    license: parsed.data.license,
-    compatibility: parsed.data.compatibility,
-  });
+    });
+    skillInserted = true;
 
-  if (parsed.data.resources && parsed.data.resources.length > 0) {
-    await db.insert(agentSkillResources).values(
-      parsed.data.resources.map((resource) => ({
-        id: crypto.randomUUID(),
-        skillId,
-        path: resource.path,
-        kind: resource.kind,
-        encoding: resource.encoding,
-        mimeType: resource.mimeType,
-        size: resource.size,
-        content: resource.content,
-      }))
-    );
+    if (resourceUploads.length > 0) {
+      await db
+        .insert(agentSkillResources)
+        .values(resourceUploads.map(({ row }) => row));
+    }
+  } catch (error) {
+    await Promise.allSettled([
+      skillInserted
+        ? db.delete(agentSkills).where(eq(agentSkills.id, skillId))
+        : Promise.resolve(),
+      bucket && resourceUploads.length > 0
+        ? bucket.delete(resourceUploads.map(({ row }) => row.key))
+        : Promise.resolve(),
+    ]);
+    throw error;
   }
 
   revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
@@ -502,7 +636,7 @@ export async function createAgentSubagent(formData: FormData) {
   const parsed = createSubagentSchema.safeParse({
     teamSlug: formData.get("teamSlug"),
     agentId: formData.get("agentId"),
-    displayName: formData.get("displayName"),
+    name: formData.get("name"),
     description: optionalString(formData.get("description")),
     instructions: optionalString(formData.get("instructions")),
     model: formData.get("model"),
@@ -521,8 +655,8 @@ export async function createAgentSubagent(formData: FormData) {
     .values({
       id: crypto.randomUUID(),
       agentId: parsed.data.agentId,
-      key: slugifyAgentName(parsed.data.displayName),
-      displayName: parsed.data.displayName,
+      slug: await allocateSubagentSlug(authorized.agent.id, parsed.data.name),
+      name: parsed.data.name,
       description: parsed.data.description ?? "",
       instructions: parsed.data.instructions ?? "",
       model: parsed.data.model,
@@ -541,6 +675,7 @@ export async function createAgentChannel(formData: FormData) {
     displayName: formData.get("displayName"),
     credentialLabel: optionalString(formData.get("credentialLabel")),
     webhookUrl: optionalString(formData.get("webhookUrl")),
+    configJson: optionalString(formData.get("configJson")),
   });
   if (!parsed.success) return;
 
@@ -550,6 +685,8 @@ export async function createAgentChannel(formData: FormData) {
   );
   if (!authorized) return;
 
+  const configJson = parsed.data.configJson;
+
   await getDb()
     .insert(agentChannels)
     .values({
@@ -558,8 +695,10 @@ export async function createAgentChannel(formData: FormData) {
       provider: parsed.data.provider,
       displayName: parsed.data.displayName,
       configJson: {
-        credentialLabel: parsed.data.credentialLabel,
-        webhookUrl: parsed.data.webhookUrl,
+        ...configJson,
+        credentialLabel:
+          parsed.data.credentialLabel ?? configJson.credentialLabel,
+        webhookUrl: parsed.data.webhookUrl ?? configJson.webhookUrl,
       },
     });
 
@@ -693,7 +832,9 @@ export async function toggleAgentResource(formData: FormData) {
       await db
         .update(agentTools)
         .set({ enabled: !row.enabled })
-        .where(eq(agentTools.id, resourceId));
+        .where(
+          and(eq(agentTools.id, resourceId), eq(agentTools.agentId, agentId))
+        );
     }
   } else if (resourceType === "skill") {
     const [row] = await db
@@ -707,7 +848,9 @@ export async function toggleAgentResource(formData: FormData) {
       await db
         .update(agentSkills)
         .set({ enabled: !row.enabled })
-        .where(eq(agentSkills.id, resourceId));
+        .where(
+          and(eq(agentSkills.id, resourceId), eq(agentSkills.agentId, agentId))
+        );
     }
   } else if (resourceType === "channel") {
     const [row] = await db
@@ -724,7 +867,12 @@ export async function toggleAgentResource(formData: FormData) {
       await db
         .update(agentChannels)
         .set({ enabled: !row.enabled })
-        .where(eq(agentChannels.id, resourceId));
+        .where(
+          and(
+            eq(agentChannels.id, resourceId),
+            eq(agentChannels.agentId, agentId)
+          )
+        );
     }
   } else if (resourceType === "connection") {
     const [row] = await db
@@ -741,7 +889,12 @@ export async function toggleAgentResource(formData: FormData) {
       await db
         .update(agentConnections)
         .set({ enabled: !row.enabled })
-        .where(eq(agentConnections.id, resourceId));
+        .where(
+          and(
+            eq(agentConnections.id, resourceId),
+            eq(agentConnections.agentId, agentId)
+          )
+        );
     }
   } else if (resourceType === "subagent") {
     const [row] = await db
@@ -758,7 +911,12 @@ export async function toggleAgentResource(formData: FormData) {
       await db
         .update(agentSubagents)
         .set({ enabled: !row.enabled })
-        .where(eq(agentSubagents.id, resourceId));
+        .where(
+          and(
+            eq(agentSubagents.id, resourceId),
+            eq(agentSubagents.agentId, agentId)
+          )
+        );
     }
   } else if (resourceType === "scheduledTask") {
     const [row] = await db
@@ -775,7 +933,12 @@ export async function toggleAgentResource(formData: FormData) {
       await db
         .update(agentScheduledTasks)
         .set({ enabled: !row.enabled })
-        .where(eq(agentScheduledTasks.id, resourceId));
+        .where(
+          and(
+            eq(agentScheduledTasks.id, resourceId),
+            eq(agentScheduledTasks.agentId, agentId)
+          )
+        );
     }
   } else {
     const [row] = await db
@@ -792,7 +955,12 @@ export async function toggleAgentResource(formData: FormData) {
       await db
         .update(agentWorkflowTasks)
         .set({ enabled: !row.enabled })
-        .where(eq(agentWorkflowTasks.id, resourceId));
+        .where(
+          and(
+            eq(agentWorkflowTasks.id, resourceId),
+            eq(agentWorkflowTasks.agentId, agentId)
+          )
+        );
     }
   }
 
@@ -825,11 +993,25 @@ export async function deleteAgentResource(formData: FormData) {
         and(eq(agentTools.id, resourceId), eq(agentTools.agentId, agentId))
       );
   } else if (resourceType === "skill") {
+    const resources = await db
+      .select({ key: agentSkillResources.key })
+      .from(agentSkillResources)
+      .innerJoin(agentSkills, eq(agentSkillResources.skillId, agentSkills.id))
+      .where(
+        and(eq(agentSkills.id, resourceId), eq(agentSkills.agentId, agentId))
+      );
     await db
       .delete(agentSkills)
       .where(
         and(eq(agentSkills.id, resourceId), eq(agentSkills.agentId, agentId))
       );
+    const r2Keys = resources
+      .map((resource) => resource.key)
+      .filter((key) => key.length > 0);
+    if (r2Keys.length > 0) {
+      const bucket = await getSkillAssetBucket();
+      await bucket.delete(r2Keys);
+    }
   } else if (resourceType === "channel") {
     await db
       .delete(agentChannels)
@@ -889,25 +1071,21 @@ export async function deployAgent(formData: FormData) {
     return;
   }
 
-  const organizations = await listUserOrganizations();
-  const organization = findOrganizationBySlug(organizations, teamSlug);
-  if (!organization) {
+  const authorized = await getAuthorizedAgent(teamSlug, agentId);
+  if (!authorized) {
     return;
   }
+  const { organization } = authorized;
 
   const db = getDb();
   const deploymentId = crypto.randomUUID();
   const versionId = deploymentId;
-  const workerNamePrefix = `crazp-${teamSlug}-`
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-");
 
   const [agent] = await db
     .update(agents)
     .set({
       status: "deploying",
       latestDeploymentId: deploymentId,
-      workerName: sql<string>`substr(${workerNamePrefix} || ${agents.slug}, 1, 63)`,
     })
     .where(
       and(eq(agents.id, agentId), eq(agents.organizationId, organization.id))
@@ -915,10 +1093,9 @@ export async function deployAgent(formData: FormData) {
     .returning({
       id: agents.id,
       slug: agents.slug,
-      workerName: agents.workerName,
     });
 
-  if (!agent?.workerName) {
+  if (!agent) {
     return;
   }
 
@@ -926,7 +1103,7 @@ export async function deployAgent(formData: FormData) {
     id: deploymentId,
     agentId: agent.id,
     status: "queued",
-    workerName: agent.workerName,
+    workerName: agent.slug,
     trigger: "deploy",
     startedAt: new Date(),
   });

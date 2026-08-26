@@ -22,10 +22,12 @@ export function ListingView({
   item,
   agents,
   teamSlug,
+  variant = "page",
 }: {
   item: CatalogItem;
   agents: AgentListItem[];
   teamSlug: string;
+  variant?: "page" | "drawer";
 }) {
   const router = useRouter();
   const [agentId, setAgentId] = useState(agents[0]?.id ?? "");
@@ -70,19 +72,45 @@ export function ListingView({
     });
   }
 
+  const isDrawer = variant === "drawer";
+
   return (
-    <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+    <div
+      className={
+        isDrawer
+          ? "flex flex-col gap-6"
+          : "grid gap-8 lg:grid-cols-[1.2fr_0.8fr]"
+      }
+    >
       <div>
         <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
           {item.kind} · {catalogSourceLabel(item.source)}
         </p>
-        <h2 className="mt-2 text-[24px] font-medium tracking-tight sm:text-[28px]">
+        <h2
+          className={
+            isDrawer
+              ? "mt-2 text-[20px] font-medium tracking-tight"
+              : "mt-2 text-[24px] font-medium tracking-tight sm:text-[28px]"
+          }
+        >
           {item.name}
         </h2>
-        <p className="mt-4 max-w-[60ch] text-[14px] leading-relaxed text-muted-foreground">
+        <p
+          className={
+            isDrawer
+              ? "mt-3 text-[13px] leading-relaxed text-muted-foreground"
+              : "mt-4 max-w-[60ch] text-[14px] leading-relaxed text-muted-foreground"
+          }
+        >
           {item.description}
         </p>
-        <dl className="mt-8 grid grid-cols-3 gap-3 text-[12px] sm:gap-4">
+        <dl
+          className={
+            isDrawer
+              ? "mt-5 grid grid-cols-3 gap-3 text-[12px]"
+              : "mt-8 grid grid-cols-3 gap-3 text-[12px] sm:gap-4"
+          }
+        >
           <div>
             <dt className="text-muted-foreground">Author</dt>
             <dd className="mt-1">{item.author.name}</dd>
@@ -98,7 +126,7 @@ export function ListingView({
         </dl>
       </div>
 
-      <Surface className="p-4 sm:p-6">
+      <Surface className={isDrawer ? "p-4" : "p-4 sm:p-6"}>
         {needsAgent && agents.length === 0 ? (
           <div className="flex flex-col items-start gap-3 py-2">
             <p className="font-medium">Create an agent first</p>

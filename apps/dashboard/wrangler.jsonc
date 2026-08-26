@@ -22,6 +22,13 @@
       "id": "00000000-0000-0000-0000-000000000002",
     },
   ],
+  "r2_buckets": [
+    {
+      "binding": "AGENT_ASSET_BUCKET",
+      "bucket_name": "crazp-agent-deployments-dev",
+      "remote": true,
+    },
+  ],
   "queues": {
     "producers": [
       {

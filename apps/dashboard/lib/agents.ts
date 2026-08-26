@@ -1,14 +1,18 @@
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { nanoid } from "nanoid";
+import { cache } from "react";
+import { slugifyAgentName } from "@/lib/display";
 import {
-  agentChannels,
-  agentConnections,
-  agentDeploymentEvents,
-  agentDeployments,
-  agentScheduledTasks,
-  agentSkills,
-  agentSubagents,
-  agentTools,
-  agentWorkflowTasks,
+  channels as agentChannels,
+  connections as agentConnections,
+  deploymentEvents as agentDeploymentEvents,
+  deployments as agentDeployments,
+  scheduledTasks as agentScheduledTasks,
+  skills as agentSkills,
+  skillResources as agentSkillResources,
+  subagents as agentSubagents,
+  tools as agentTools,
+  workflowTasks as agentWorkflowTasks,
   agents,
   type Agent,
   type AgentChannel,
@@ -17,11 +21,17 @@ import {
   type AgentDeploymentEvent,
   type AgentScheduledTask,
   type AgentSkill,
+  type AgentSkillResource,
   type AgentSubagent,
   type AgentTool,
   type AgentWorkflowTask,
+  subagents,
 } from "@workspace/db/schema";
 import { getDb } from "@/lib/db";
+
+export type AgentSkillDetail = AgentSkill & {
+  resources: AgentSkillResource[];
+};
 
 export type AgentListItem = {
   id: string;
@@ -50,7 +60,7 @@ export type AgentListItem = {
 
 export type AgentDetailData = AgentListItem & {
   tools: AgentTool[];
-  skills: AgentSkill[];
+  skills: AgentSkillDetail[];
   channels: AgentChannel[];
   connections: AgentConnection[];
   subagents: AgentSubagent[];
@@ -59,17 +69,6 @@ export type AgentDetailData = AgentListItem & {
   deployments: AgentDeployment[];
   deploymentEvents: AgentDeploymentEvent[];
 };
-
-export function slugifyAgentName(name: string) {
-  const slug = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-
-  return slug || "agent";
-}
 
 const agentListColumns = {
   id: agents.id,
@@ -95,185 +94,245 @@ function countByAgentId(rows: Array<{ agentId: string }>) {
   return counts;
 }
 
-export async function listOrganizationAgents(
-  organizationId: string
-): Promise<AgentListItem[]> {
-  const db = getDb();
+export const listOrganizationAgents = cache(
+  async (organizationId: string): Promise<AgentListItem[]> => {
+    const db = getDb();
 
-  const agentRows = await db
-    .select(agentListColumns)
-    .from(agents)
-    .where(
-      and(
-        eq(agents.organizationId, organizationId),
-        ne(agents.status, "archived")
+    const agentRows = await db
+      .select(agentListColumns)
+      .from(agents)
+      .where(
+        and(
+          eq(agents.organizationId, organizationId),
+          ne(agents.status, "archived")
+        )
       )
-    )
-    .orderBy(desc(agents.createdAt));
+      .orderBy(desc(agents.createdAt));
 
-  if (agentRows.length === 0) {
-    return [];
+    if (agentRows.length === 0) {
+      return [];
+    }
+
+    const agentIds = agentRows.map((agent) => agent.id);
+    const [
+      tools,
+      skills,
+      channels,
+      connections,
+      subagents,
+      scheduledTasks,
+      workflowTasks,
+    ] = await Promise.all([
+      db
+        .select({ agentId: agentTools.agentId })
+        .from(agentTools)
+        .where(inArray(agentTools.agentId, agentIds)),
+      db
+        .select({ agentId: agentSkills.agentId })
+        .from(agentSkills)
+        .where(inArray(agentSkills.agentId, agentIds)),
+      db
+        .select({ agentId: agentChannels.agentId })
+        .from(agentChannels)
+        .where(inArray(agentChannels.agentId, agentIds)),
+      db
+        .select({ agentId: agentConnections.agentId })
+        .from(agentConnections)
+        .where(inArray(agentConnections.agentId, agentIds)),
+      db
+        .select({ agentId: agentSubagents.agentId })
+        .from(agentSubagents)
+        .where(inArray(agentSubagents.agentId, agentIds)),
+      db
+        .select({ agentId: agentScheduledTasks.agentId })
+        .from(agentScheduledTasks)
+        .where(inArray(agentScheduledTasks.agentId, agentIds)),
+      db
+        .select({ agentId: agentWorkflowTasks.agentId })
+        .from(agentWorkflowTasks)
+        .where(inArray(agentWorkflowTasks.agentId, agentIds)),
+    ]);
+
+    const toolCounts = countByAgentId(tools);
+    const skillCounts = countByAgentId(skills);
+    const channelCounts = countByAgentId(channels);
+    const connectionCounts = countByAgentId(connections);
+    const subagentCounts = countByAgentId(subagents);
+    const scheduledTaskCounts = countByAgentId(scheduledTasks);
+    const workflowTaskCounts = countByAgentId(workflowTasks);
+
+    return agentRows.map((agent) => ({
+      ...agent,
+      resourceCounts: {
+        tools: toolCounts.get(agent.id) ?? 0,
+        skills: skillCounts.get(agent.id) ?? 0,
+        channels: channelCounts.get(agent.id) ?? 0,
+        connections: connectionCounts.get(agent.id) ?? 0,
+        subagents: subagentCounts.get(agent.id) ?? 0,
+        scheduledTasks: scheduledTaskCounts.get(agent.id) ?? 0,
+        workflowTasks: workflowTaskCounts.get(agent.id) ?? 0,
+      },
+    }));
   }
+);
 
-  const [
-    tools,
-    skills,
-    channels,
-    connections,
-    subagents,
-    scheduledTasks,
-    workflowTasks,
-  ] = await Promise.all([
-    db.select({ agentId: agentTools.agentId }).from(agentTools),
-    db.select({ agentId: agentSkills.agentId }).from(agentSkills),
-    db.select({ agentId: agentChannels.agentId }).from(agentChannels),
-    db.select({ agentId: agentConnections.agentId }).from(agentConnections),
-    db.select({ agentId: agentSubagents.agentId }).from(agentSubagents),
-    db
-      .select({ agentId: agentScheduledTasks.agentId })
-      .from(agentScheduledTasks),
-    db.select({ agentId: agentWorkflowTasks.agentId }).from(agentWorkflowTasks),
-  ]);
+export const getOrganizationAgent = cache(
+  async (
+    organizationId: string,
+    agentSlug: string
+  ): Promise<AgentDetailData | null> => {
+    const db = getDb();
+    const [agent] = await db
+      .select(agentListColumns)
+      .from(agents)
+      .where(
+        and(
+          eq(agents.organizationId, organizationId),
+          eq(agents.slug, agentSlug)
+        )
+      )
+      .limit(1);
 
-  const toolCounts = countByAgentId(tools);
-  const skillCounts = countByAgentId(skills);
-  const channelCounts = countByAgentId(channels);
-  const connectionCounts = countByAgentId(connections);
-  const subagentCounts = countByAgentId(subagents);
-  const scheduledTaskCounts = countByAgentId(scheduledTasks);
-  const workflowTaskCounts = countByAgentId(workflowTasks);
+    if (!agent) {
+      return null;
+    }
 
-  return agentRows.map((agent) => ({
-    ...agent,
-    resourceCounts: {
-      tools: toolCounts.get(agent.id) ?? 0,
-      skills: skillCounts.get(agent.id) ?? 0,
-      channels: channelCounts.get(agent.id) ?? 0,
-      connections: connectionCounts.get(agent.id) ?? 0,
-      subagents: subagentCounts.get(agent.id) ?? 0,
-      scheduledTasks: scheduledTaskCounts.get(agent.id) ?? 0,
-      workflowTasks: workflowTaskCounts.get(agent.id) ?? 0,
-    },
-  }));
-}
-
-export async function getOrganizationAgent(
-  organizationId: string,
-  agentSlug: string
-): Promise<AgentDetailData | null> {
-  const db = getDb();
-  const [agent] = await db
-    .select(agentListColumns)
-    .from(agents)
-    .where(
-      and(eq(agents.organizationId, organizationId), eq(agents.slug, agentSlug))
-    )
-    .limit(1);
-
-  if (!agent) {
-    return null;
-  }
-
-  const [
-    tools,
-    skills,
-    channels,
-    connections,
-    subagents,
-    scheduledTasks,
-    workflowTasks,
-    deployments,
-  ] = await Promise.all([
-    db.select().from(agentTools).where(eq(agentTools.agentId, agent.id)),
-    db.select().from(agentSkills).where(eq(agentSkills.agentId, agent.id)),
-    db.select().from(agentChannels).where(eq(agentChannels.agentId, agent.id)),
-    db
-      .select()
-      .from(agentConnections)
-      .where(eq(agentConnections.agentId, agent.id)),
-    db
-      .select()
-      .from(agentSubagents)
-      .where(eq(agentSubagents.agentId, agent.id)),
-    db
-      .select()
-      .from(agentScheduledTasks)
-      .where(eq(agentScheduledTasks.agentId, agent.id)),
-    db
-      .select()
-      .from(agentWorkflowTasks)
-      .where(eq(agentWorkflowTasks.agentId, agent.id)),
-    db
-      .select()
-      .from(agentDeployments)
-      .where(eq(agentDeployments.agentId, agent.id))
-      .orderBy(desc(agentDeployments.createdAt)),
-  ]);
-
-  const latestDeployment = deployments[0];
-  const deploymentEvents = latestDeployment
-    ? await db
+    const [
+      tools,
+      skills,
+      channels,
+      connections,
+      subagents,
+      scheduledTasks,
+      workflowTasks,
+      deployments,
+    ] = await Promise.all([
+      db.select().from(agentTools).where(eq(agentTools.agentId, agent.id)),
+      db.select().from(agentSkills).where(eq(agentSkills.agentId, agent.id)),
+      db
         .select()
-        .from(agentDeploymentEvents)
-        .where(eq(agentDeploymentEvents.deploymentId, latestDeployment.id))
-        .orderBy(desc(agentDeploymentEvents.createdAt))
-    : [];
+        .from(agentChannels)
+        .where(eq(agentChannels.agentId, agent.id)),
+      db
+        .select()
+        .from(agentConnections)
+        .where(eq(agentConnections.agentId, agent.id)),
+      db
+        .select()
+        .from(agentSubagents)
+        .where(eq(agentSubagents.agentId, agent.id)),
+      db
+        .select()
+        .from(agentScheduledTasks)
+        .where(eq(agentScheduledTasks.agentId, agent.id)),
+      db
+        .select()
+        .from(agentWorkflowTasks)
+        .where(eq(agentWorkflowTasks.agentId, agent.id)),
+      db
+        .select()
+        .from(agentDeployments)
+        .where(eq(agentDeployments.agentId, agent.id))
+        .orderBy(desc(agentDeployments.createdAt)),
+    ]);
 
-  return {
-    ...agent,
-    resourceCounts: {
-      tools: tools.length,
-      skills: skills.length,
-      channels: channels.length,
-      connections: connections.length,
-      subagents: subagents.length,
-      scheduledTasks: scheduledTasks.length,
-      workflowTasks: workflowTasks.length,
-    },
-    tools,
-    skills,
-    channels,
-    connections,
-    subagents,
-    scheduledTasks,
-    workflowTasks,
-    deployments,
-    deploymentEvents,
-  };
-}
+    const latestDeployment = deployments[0];
+    const [deploymentEvents, skillResourceRows] = await Promise.all([
+      latestDeployment
+        ? db
+            .select()
+            .from(agentDeploymentEvents)
+            .where(eq(agentDeploymentEvents.deploymentId, latestDeployment.id))
+            .orderBy(desc(agentDeploymentEvents.createdAt))
+        : Promise.resolve([] as AgentDeploymentEvent[]),
+      skills.length > 0
+        ? db
+            .select()
+            .from(agentSkillResources)
+            .where(
+              inArray(
+                agentSkillResources.skillId,
+                skills.map((skill) => skill.id)
+              )
+            )
+        : Promise.resolve([] as AgentSkillResource[]),
+    ]);
 
-export async function isAgentSlugTaken(
-  organizationId: string,
-  slug: string
-): Promise<boolean> {
+    const resourcesBySkillId = new Map<string, AgentSkillResource[]>();
+    for (const resource of skillResourceRows) {
+      const list = resourcesBySkillId.get(resource.skillId);
+      if (list) list.push(resource);
+      else resourcesBySkillId.set(resource.skillId, [resource]);
+    }
+
+    const skillsWithResources: AgentSkillDetail[] = skills.map((skill) => ({
+      ...skill,
+      resources: resourcesBySkillId.get(skill.id) ?? [],
+    }));
+
+    return {
+      ...agent,
+      resourceCounts: {
+        tools: tools.length,
+        skills: skills.length,
+        channels: channels.length,
+        connections: connections.length,
+        subagents: subagents.length,
+        scheduledTasks: scheduledTasks.length,
+        workflowTasks: workflowTasks.length,
+      },
+      tools,
+      skills: skillsWithResources,
+      channels,
+      connections,
+      subagents,
+      scheduledTasks,
+      workflowTasks,
+      deployments,
+      deploymentEvents,
+    };
+  }
+);
+
+async function isAgentSlugTaken(slug: string): Promise<boolean> {
   const db = getDb();
   const existing = await db
     .select({ id: agents.id })
     .from(agents)
-    .where(
-      and(eq(agents.organizationId, organizationId), eq(agents.slug, slug))
-    )
+    .where(and(eq(agents.slug, slug)))
     .limit(1);
 
   return existing.length > 0;
 }
 
-export async function allocateAgentSlug(
-  organizationId: string,
+export async function allocateAgentSlug(name: string): Promise<string> {
+  const base = slugifyAgentName(name);
+  if (!(await isAgentSlugTaken(base))) {
+    return base;
+  }
+  return `${base.slice(0, 32)}-${nanoid(8)}`;
+}
+
+export async function allocateSubagentSlug(
+  agentId: string,
   name: string
 ): Promise<string> {
   const base = slugifyAgentName(name);
-  if (!(await isAgentSlugTaken(organizationId, base))) {
+  if (!(await isSubagentSlugTaken(agentId, base))) {
     return base;
   }
+  return `${base.slice(0, 32)}-${nanoid(8)}`;
+}
 
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const suffix = crypto.randomUUID().slice(0, 6);
-    const candidate = `${base.slice(0, 40)}-${suffix}`;
-    if (!(await isAgentSlugTaken(organizationId, candidate))) {
-      return candidate;
-    }
-  }
-
-  return `${base.slice(0, 32)}-${crypto.randomUUID().slice(0, 8)}`;
+async function isSubagentSlugTaken(
+  agentId: string,
+  slug: string
+): Promise<boolean> {
+  const db = getDb();
+  const existing = await db
+    .select({ id: subagents.id })
+    .from(subagents)
+    .where(and(eq(subagents.agentId, agentId), eq(subagents.slug, slug)))
+    .limit(1);
+  return existing.length > 0;
 }

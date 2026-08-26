@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import type { AgentListItem } from "@/lib/agents";
 import { since } from "@/lib/display";
-import { AgentMark, Empty, StatusDot, Surface } from "@/components/board/ui";
+import { AgentMark, StatusDot, Surface } from "@/components/board/ui";
 
 export function HomeRail({
   agents,
@@ -26,13 +26,13 @@ export function HomeRail({
         </p>
       </Surface>
       <Surface>
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+        <div className="flex flex-col gap-1 px-5 py-4">
           <p className="font-medium">Recent runs</p>
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
+            When an agent answers a message or finishes a scheduled job, it will
+            land here.
+          </p>
         </div>
-        <Empty
-          title="No runs yet"
-          body="When an agent answers a message or finishes a scheduled job, it will land here."
-        />
       </Surface>
       {errored.length > 0 ? (
         <AlertCard agents={errored} teamSlug={teamSlug} />

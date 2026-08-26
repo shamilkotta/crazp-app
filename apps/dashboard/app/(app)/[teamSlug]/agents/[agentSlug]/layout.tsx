@@ -1,7 +1,5 @@
-import { notFound } from "next/navigation";
 import { AgentChrome } from "@/components/board/agent-chrome";
-import { getOrganizationAgent } from "@/lib/agents";
-import { requireTeam } from "@/lib/team";
+import { requireTeamAgent } from "@/lib/team";
 
 export default async function AgentLayout({
   children,
@@ -11,11 +9,7 @@ export default async function AgentLayout({
   params: Promise<{ teamSlug: string; agentSlug: string }>;
 }) {
   const { teamSlug, agentSlug } = await params;
-  const { organization } = await requireTeam(teamSlug);
-  const agent = await getOrganizationAgent(organization.id, agentSlug);
-  if (!agent) {
-    notFound();
-  }
+  const { agent } = await requireTeamAgent(teamSlug, agentSlug);
 
   return (
     <>

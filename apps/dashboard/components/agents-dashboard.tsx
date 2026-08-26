@@ -1,6 +1,15 @@
 "use client";
 
-import { ChevronDown, LayoutGrid, List, Plus, Search } from "lucide-react";
+import {
+  Bot,
+  ChevronDown,
+  LayoutGrid,
+  List,
+  Plus,
+  Radio,
+  Rocket,
+  Search,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -25,7 +34,26 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
+import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
+
+const EMPTY_STEPS = [
+  {
+    icon: Bot,
+    title: "Draft an agent",
+    body: "Name it, pick a model, and keep it private.",
+  },
+  {
+    icon: Radio,
+    title: "Add a channel",
+    body: "Pull Slack, web chat, or another channel from the catalog.",
+  },
+  {
+    icon: Rocket,
+    title: "Deploy",
+    body: "Ship when you're ready — nothing is public until then.",
+  },
+] as const;
 
 export function AgentsDashboard({
   agents,
@@ -80,28 +108,80 @@ export function AgentsDashboard({
 
   if (agents.length === 0) {
     return (
-      <div className="flex flex-col gap-6 lg:flex-row">
-        <Surface className="order-1 min-w-0 flex-1">
-          <Empty
-            title="No agents yet"
-            body="Create a draft, add a channel from the catalog, then deploy. It stays private until you do."
-            action={
-              <Link href={`/${teamSlug}/new`}>
-                <GhostButton>
-                  <Plus className="size-3.5" />
-                  New agent
-                </GhostButton>
-              </Link>
-            }
-          />
-        </Surface>
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="order-1 min-w-0 flex-1">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[15px] font-medium tracking-tight">Agents</p>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
+                Draft, connect, and deploy agents for your team.
+              </p>
+            </div>
+            <NewAgentMenu teamSlug={teamSlug} />
+          </div>
+
+          <Surface className="p-6 sm:p-7">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-5">
+              <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
+                <Bot className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[15px] font-medium tracking-tight">
+                  No agents yet
+                </p>
+                <p className="mt-1 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+                  Create a draft, add a channel from the catalog, then deploy.
+                  It stays private until you do.
+                </p>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Button
+                    render={<Link href={`/${teamSlug}/new`} />}
+                    nativeButton={false}
+                  >
+                    <Plus data-icon="inline-start" />
+                    New agent
+                  </Button>
+                  <Button
+                    variant="outline"
+                    render={<Link href={`/${teamSlug}/catalog`} />}
+                    nativeButton={false}
+                  >
+                    Browse catalog
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <ol className="mt-7 grid gap-3 border-t border-border pt-6 sm:grid-cols-3">
+              {EMPTY_STEPS.map((step, index) => (
+                <li
+                  key={step.title}
+                  className="flex flex-col gap-2 rounded-lg bg-muted/40 px-3.5 py-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex size-6 items-center justify-center rounded-md bg-background text-muted-foreground">
+                      <step.icon className="size-3.5" />
+                    </span>
+                    <span className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                      Step {index + 1}
+                    </span>
+                  </div>
+                  <p className="font-medium">{step.title}</p>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground">
+                    {step.body}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </Surface>
+        </div>
         <HomeRail agents={agents} teamSlug={teamSlug} />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row">
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
       <div className="order-1 min-w-0 flex-1">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative min-w-0 flex-1">
@@ -148,30 +228,7 @@ export function AgentsDashboard({
                 <List className="size-4" />
               </button>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <button
-                    type="button"
-                    className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-foreground px-3.5 text-[13px] font-medium text-background outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring sm:flex-none"
-                  />
-                }
-              >
-                <Plus className="size-4" />
-                New agent
-                <ChevronDown className="size-3.5 opacity-70" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-44">
-                <DropdownMenuItem render={<Link href={`/${teamSlug}/new`} />}>
-                  Blank agent
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  render={<Link href={`/${teamSlug}/new?from=template`} />}
-                >
-                  From a template
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <NewAgentMenu teamSlug={teamSlug} />
           </div>
         </div>
 
@@ -232,6 +289,35 @@ export function AgentsDashboard({
       </div>
       <HomeRail agents={agents} teamSlug={teamSlug} />
     </div>
+  );
+}
+
+function NewAgentMenu({ teamSlug }: { teamSlug: string }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-foreground px-3.5 text-[13px] font-medium text-background outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring sm:flex-none"
+          />
+        }
+      >
+        <Plus className="size-4" />
+        New agent
+        <ChevronDown className="size-3.5 opacity-70" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-44">
+        <DropdownMenuItem render={<Link href={`/${teamSlug}/new`} />}>
+          Blank agent
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          render={<Link href={`/${teamSlug}/new?from=template`} />}
+        >
+          From a template
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

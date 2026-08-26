@@ -137,6 +137,60 @@ export function Surface({
   );
 }
 
+/** Clickable resource/catalog card; actions stay interactive. */
+export function ResourceCard({
+  className,
+  selected,
+  muted,
+  onSelect,
+  selectLabel,
+  actions,
+  children,
+  bodyClassName,
+  actionsClassName,
+}: {
+  className?: string;
+  selected?: boolean;
+  muted?: boolean;
+  onSelect: () => void;
+  selectLabel: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+  bodyClassName?: string;
+  actionsClassName?: string;
+}) {
+  return (
+    <Surface
+      className={cn(
+        muted && "opacity-50",
+        selected && "ring-1 ring-foreground/15",
+        className
+      )}
+    >
+      <div className={cn("flex items-start", bodyClassName)}>
+        <button
+          type="button"
+          className="min-w-0 flex-1 p-4 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&>p:first-child]:hover:underline"
+          aria-label={selectLabel}
+          onClick={onSelect}
+        >
+          {children}
+        </button>
+        {actions ? (
+          <div
+            className={cn(
+              "flex shrink-0 items-center gap-3 px-4 pb-4 sm:py-4 sm:pr-4 sm:pl-0",
+              actionsClassName
+            )}
+          >
+            {actions}
+          </div>
+        ) : null}
+      </div>
+    </Surface>
+  );
+}
+
 export function PrimaryButton({
   children,
   className,

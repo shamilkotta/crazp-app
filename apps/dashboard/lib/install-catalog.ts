@@ -112,7 +112,7 @@ export async function installCatalogItem(input: {
         formData({
           teamSlug,
           agentId,
-          displayName: item.name,
+          name: item.name,
           description: item.summary,
           instructions: item.description,
           model: model ?? "@cf/moonshotai/kimi-k2.6",

@@ -1,9 +1,6 @@
-import { notFound } from "next/navigation";
-
 import { AgentDetailPage } from "@/components/agent-detail";
 import type { AgentTab } from "@/components/board/agent-types";
-import { getOrganizationAgent } from "@/lib/agents";
-import { requireTeam } from "@/lib/team";
+import { requireTeamAgent } from "@/lib/team";
 
 export async function AgentTabPage({
   params,
@@ -13,11 +10,7 @@ export async function AgentTabPage({
   tab: AgentTab;
 }) {
   const { teamSlug, agentSlug } = await params;
-  const { organization } = await requireTeam(teamSlug);
-  const agent = await getOrganizationAgent(organization.id, agentSlug);
-  if (!agent) {
-    notFound();
-  }
+  const { agent } = await requireTeamAgent(teamSlug, agentSlug);
 
   return <AgentDetailPage agent={agent} teamSlug={teamSlug} tab={tab} />;
 }
