@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -405,7 +406,7 @@ function shouldSkipPack(version, { hasLocalSource }) {
 
 function main() {
   if (!existsSync(vendorDir)) {
-    throw new Error(`Could not find worker vendor directory at ${vendorDir}`);
+    mkdirSync(vendorDir, { recursive: true });
   }
 
   const version = readRequiredVersion();
