@@ -14,7 +14,11 @@ function WaitlistForm() {
         aria-label="Email address"
         className="h-9 rounded-none border-border bg-background/85 text-sm shadow-none backdrop-blur"
       />
-      <Button type="submit" size="sm" className="h-9 rounded-none px-4">
+      <Button
+        type="submit"
+        size="sm"
+        className="h-9 rounded-none px-4 has-data-[icon=inline-end]:pe-4"
+      >
         Join waitlist
         <ArrowRight data-icon="inline-end" />
       </Button>
@@ -28,11 +32,11 @@ export function LandingPage() {
       <section className="relative z-10 flex shrink-0 flex-col justify-center px-5 pt-16 pb-6 sm:px-6 sm:pt-20 lg:absolute lg:inset-y-0 lg:left-0 lg:w-[42%] lg:items-center lg:px-12 lg:pt-0 lg:pb-0">
         <div className="flex w-full max-w-md flex-col gap-5 lg:gap-6">
           <h1 className="text-3xl leading-[1.05] font-semibold tracking-tight sm:text-4xl">
-            Shape an agent. Let it roam.
+            Build agents that work across your stack.
           </h1>
           <p className="text-[15px] leading-relaxed text-muted-foreground">
-            Tune how it thinks and what it can reach. Then set it loose on
-            whatever you need done.
+            Most real work crosses more than one tool. Build agents that own
+            those workflows, you set the role, they handle what comes next.
           </p>
           <WaitlistForm />
         </div>

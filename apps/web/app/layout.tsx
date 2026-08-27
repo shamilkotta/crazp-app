@@ -13,9 +13,9 @@ const fontMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "crazp — Shape an agent",
+  title: "crazp — Build agents that work across your stack",
   description:
-    "Tune how your agent thinks and what it can reach. Then set it loose on whatever you need done.",
+    "Most real work crosses more than one tool. Build agents that own those workflows, you set the role, they handle what comes next.",
 };
 
 export default function RootLayout({
