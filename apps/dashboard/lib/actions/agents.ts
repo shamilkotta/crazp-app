@@ -1,6 +1,5 @@
 "use server";
 
-import type { R2Bucket } from "@cloudflare/workers-types";
 import { revalidatePath } from "next/cache";
 import { cache } from "react";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
@@ -159,18 +158,6 @@ type DeploymentQueueMessage = {
   agentId: string;
   organizationId: string;
   versionId: string;
-};
-
-type DeploymentQueue = {
-  send: (payload: DeploymentQueueMessage) => Promise<void>;
-};
-
-type DeploymentEnv = {
-  AGENT_DEPLOYMENT_QUEUE?: DeploymentQueue;
-};
-
-type SkillAssetEnv = {
-  AGENT_ASSET_BUCKET?: R2Bucket;
 };
 
 type SkillResourceUpload = {
@@ -335,7 +322,7 @@ const getAsyncCloudflareContext = cache(() =>
 
 async function enqueueDeploymentJob(payload: DeploymentQueueMessage) {
   const ctx = await getAsyncCloudflareContext();
-  const queue = (ctx.env as DeploymentEnv).AGENT_DEPLOYMENT_QUEUE;
+  const queue = ctx.env.AGENT_DEPLOYMENT_QUEUE;
   if (!queue) {
     return false;
   }
@@ -346,7 +333,7 @@ async function enqueueDeploymentJob(payload: DeploymentQueueMessage) {
 
 async function getSkillAssetBucket() {
   const ctx = await getAsyncCloudflareContext();
-  const bucket = (ctx.env as SkillAssetEnv).AGENT_ASSET_BUCKET;
+  const bucket = ctx.env.AGENT_ASSET_BUCKET;
   if (!bucket) {
     throw new Error("Agent asset storage is not configured.");
   }
