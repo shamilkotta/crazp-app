@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6c71a346-f6e9-436c-beeb-5a1fb2a1d4b7",
+  "id": "37e85cb1-7cd8-49dd-86e5-00861b54cd9b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agents": {
@@ -2312,6 +2312,46 @@
             "identifier"
           ],
           "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "waitlist_entries": {
+      "name": "waitlist_entries",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast(unixepoch('subsecond') * 1000 as integer))"
+        }
+      },
+      "indexes": {
+        "waitlist_entries_email_idx": {
+          "name": "waitlist_entries_email_idx",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
         }
       },
       "foreignKeys": {},

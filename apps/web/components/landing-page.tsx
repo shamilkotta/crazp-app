@@ -1,27 +1,82 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { AgentStage } from "@/components/agent-stage/agent-stage";
+import { joinWaitlist } from "@/lib/actions/waitlist";
 
 function WaitlistForm() {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError("Enter your email address.");
+      return;
+    }
+
+    setError(null);
+    startTransition(async () => {
+      const result = await joinWaitlist(trimmed);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setSuccess(true);
+      setEmail("");
+    });
+  }
+
+  if (success) {
+    return (
+      <p className="text-sm text-muted-foreground" role="status">
+        You&apos;re on the list. We&apos;ll be in touch.
+      </p>
+    );
+  }
+
   return (
-    <form className="flex w-full max-w-sm flex-col gap-2 sm:flex-row">
-      <Input
-        type="email"
-        placeholder="Enter your email"
-        aria-label="Email address"
-        className="h-9 rounded-none border-border bg-background/85 text-sm shadow-none backdrop-blur"
-      />
-      <Button
-        type="submit"
-        size="sm"
-        className="h-9 rounded-none px-4 has-data-[icon=inline-end]:pe-4"
-      >
-        Join waitlist
-        <ArrowRight data-icon="inline-end" />
-      </Button>
+    <form
+      className="flex w-full max-w-sm flex-col gap-2"
+      onSubmit={onSubmit}
+      noValidate
+    >
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Input
+          type="email"
+          name="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="Enter your email"
+          aria-label="Email address"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? "waitlist-error" : undefined}
+          autoComplete="email"
+          required
+          disabled={pending}
+          className="h-9 rounded-none border-border bg-background/85 text-sm shadow-none backdrop-blur"
+        />
+        <Button
+          type="submit"
+          size="sm"
+          disabled={pending}
+          className="h-9 rounded-none px-4 has-data-[icon=inline-end]:pe-4"
+        >
+          {pending ? "Joining…" : "Join waitlist"}
+          <ArrowRight data-icon="inline-end" />
+        </Button>
+      </div>
+      {error ? (
+        <p id="waitlist-error" className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

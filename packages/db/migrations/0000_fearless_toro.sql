@@ -325,4 +325,11 @@ CREATE TABLE `verifications` (
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX `verifications_identifier_idx` ON `verifications` (`identifier`);
+CREATE INDEX `verifications_identifier_idx` ON `verifications` (`identifier`);--> statement-breakpoint
+CREATE TABLE `waitlist_entries` (
+	`id` text PRIMARY KEY NOT NULL,
+	`email` text NOT NULL,
+	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `waitlist_entries_email_idx` ON `waitlist_entries` (`email`);

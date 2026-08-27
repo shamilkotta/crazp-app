@@ -8,17 +8,25 @@
     "build": "next build",
     "start": "next start",
     "lint": "oxlint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.6.5",
+    "@workspace/db": "workspace:*",
     "@workspace/ui": "workspace:*",
+    "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.28.0",
     "motion": "^12.43.0",
     "next": "16.2.11",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260405.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -26,6 +34,7 @@
     "@workspace/oxlint-config": "workspace:^",
     "@workspace/typescript-config": "workspace:*",
     "oxlint": "^1.76.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.13.2"
   }
 }
