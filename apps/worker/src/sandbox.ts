@@ -3,7 +3,7 @@ import {
   Sandbox as BaseSandbox,
   ContainerProxy,
 } from "@cloudflare/sandbox";
-import crazpCoreTarball from "./vendor/crazp-core-0.1.0.tgz";
+import crazpCoreTarball from "./vendor/crazp-core";
 
 export class Sandbox extends BaseSandbox {
   // Keep general egress off; allowlisted HTTPS must be intercepted or TLS

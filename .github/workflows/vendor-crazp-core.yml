@@ -49,7 +49,7 @@ jobs:
       - name: Commit vendored tarball
         run: |
           version="$(tr -d '[:space:]' < apps/worker/crazp-core.version)"
-          git add apps/worker/src/vendor apps/worker/src/build.ts
+          git add apps/worker/src/vendor
           if git diff --cached --quiet; then
             echo "Vendor artifacts already up to date for @crazp/core@${version}"
             exit 0
