@@ -3,7 +3,9 @@
 ARG SANDBOX_VERSION=0.12.5
 FROM docker.io/cloudflare/sandbox:${SANDBOX_VERSION}-musl AS sandbox-musl
 FROM node:24-alpine AS node-runtime
-FROM docker:28-dind-rootless
+FROM docker:dind-rootless
+
+ARG SANDBOX_VERSION
 
 USER root
 
@@ -44,6 +46,7 @@ RUN chmod +x /home/rootless/boot-docker.sh
 # Wrangler only adds --network=host to docker build when this is set.
 # Required because inner builds cannot use iptables-backed bridge networking.
 ENV WRANGLER_CI_OVERRIDE_NETWORK_MODE_HOST=true
+ENV SANDBOX_VERSION=${SANDBOX_VERSION}
 
 EXPOSE 8080
 

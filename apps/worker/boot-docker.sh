@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+# Skip TLS cert generation; sandbox builds talk to dockerd over the unix socket.
+export DOCKER_TLS_CERTDIR=
+
 # Trust the ephemeral intercept CA before dockerd starts so registry
 # pulls/pushes work with interceptHttps.
 if [ -f /etc/cloudflare/certs/cloudflare-containers-ca.crt ]; then
@@ -11,6 +14,7 @@ fi
 
 # Cloudflare Containers cannot manipulate iptables.
 dockerd-entrypoint.sh dockerd --iptables=false --ip6tables=false &
+
 until docker version >/dev/null 2>&1; do
   sleep 0.2
 done

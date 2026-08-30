@@ -55,6 +55,8 @@ export async function prewarmSandbox(
   deploymentId: string
 ) {
   const sandbox = getSandbox(env, deploymentId);
+  console.info("prewarm: waiting for sandbox packages, wrangler, and docker");
+
   await Promise.all([
     ensureLocalPackages(
       sandbox,
@@ -65,10 +67,11 @@ export async function prewarmSandbox(
     ensureWrangler(sandbox),
     ensureDocker(sandbox),
   ]);
+  console.info("prewarm: sandbox ready");
 }
 
 async function ensureWrangler(sandbox: Sandbox) {
-  const version = await sandbox.exec("wrangler --version");
+  const version = await sandbox.exec("wrangler --version", { timeout: 30_000 });
   if (!version.success) {
     throw new Error(
       `Wrangler is not available in the build sandbox:\n${version.stderr || version.stdout}`
@@ -77,14 +80,90 @@ async function ensureWrangler(sandbox: Sandbox) {
 }
 
 async function ensureDocker(sandbox: Sandbox) {
-  const version = await sandbox.exec(
-    "sh -c 'i=0; until docker version >/dev/null 2>&1; do i=$((i+1)); [ \"$i\" -gt 75 ] && exit 1; sleep 0.2; done; docker version'"
-  );
+  let version = await sandbox.exec("docker version", { timeout: 10_000 });
+  if (!version.success && isMissingDockerSocket(version)) {
+    await startDockerDaemon(sandbox);
+    version = await waitForDocker(sandbox);
+  }
+
   if (!version.success) {
+    const detail = await describeDockerFailure(sandbox, version);
     throw new Error(
-      `Docker is not available in the build sandbox:\n${version.stderr || version.stdout}`
+      `Docker is not available in the build sandbox:\n${detail}`
     );
   }
+}
+
+async function startDockerDaemon(sandbox: Sandbox) {
+  const processes = await sandbox.listProcesses();
+  const bootScript = "/home/rootless/boot-docker.sh";
+  const existing = processes.find(
+    (process) =>
+      process.command.includes(bootScript) &&
+      (process.status === "starting" || process.status === "running")
+  );
+  if (existing) return;
+
+  const start = await sandbox.startProcess(`sh ${shellQuote(bootScript)}`, {
+    processId: `docker-daemon-${Date.now()}`,
+    autoCleanup: false,
+  });
+  console.info("prewarm: started docker daemon", {
+    processId: start.id,
+    status: start.status,
+  });
+}
+
+async function waitForDocker(sandbox: Sandbox) {
+  let last = await sandbox.exec("docker version", { timeout: 10_000 });
+  for (let attempt = 0; attempt < 60 && !last.success; attempt += 1) {
+    await sleep(500);
+    last = await sandbox.exec("docker version", { timeout: 10_000 });
+  }
+  return last;
+}
+
+async function describeDockerFailure(
+  sandbox: Sandbox,
+  version: { stdout: string; stderr: string }
+) {
+  const processes = await sandbox.listProcesses();
+  const bootProcesses = processes.filter((process) =>
+    process.command.includes("/home/rootless/boot-docker.sh")
+  );
+  const logs = await Promise.all(
+    bootProcesses.map(async (process) => {
+      const output = await sandbox.getProcessLogs(process.id);
+      return [
+        `process ${process.id} (${process.status})`,
+        output.stdout,
+        output.stderr,
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+  );
+
+  return [
+    version.stderr || version.stdout,
+    logs.length > 0 ? `Docker startup logs:\n${logs.join("\n---\n")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function isMissingDockerSocket(result: { stdout: string; stderr: string }) {
+  const output = `${result.stdout}\n${result.stderr}`;
+  return (
+    output.includes("Cannot connect to the Docker daemon") ||
+    output.includes("failed to connect to the docker API") ||
+    output.includes("/var/run/docker.sock") ||
+    output.includes("docker.sock: connect: no such file or directory")
+  );
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function ensureLocalPackages(
