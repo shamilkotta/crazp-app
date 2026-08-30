@@ -64,18 +64,14 @@ export const agents = sqliteTable(
     executionConfigJson: text("execution_config_json", { mode: "json" })
       .$type<{
         workspaceTools?: boolean;
-        execute?: boolean;
-        executeBundle?: boolean;
+        container?: boolean;
         browser?: boolean;
-        sandbox?: boolean;
       }>()
       .notNull()
       .default({
         workspaceTools: true,
-        execute: true,
-        executeBundle: true,
+        container: true,
         browser: true,
-        sandbox: true,
       }),
     status: text("status", {
       enum: ["draft", "deploying", "active", "paused", "error", "archived"],
