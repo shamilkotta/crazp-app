@@ -15,7 +15,7 @@
     {
       "binding": "DATABASE",
       "database_name": "crazp-db",
-      "database_id": "00000000-0000-0000-0000-000000000001",
+      "database_id": "d7785a65-1aaa-455c-a4e8-25b4096e6830",
       "migrations_dir": "../../packages/db/migrations",
     },
   ],
