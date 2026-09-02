@@ -13,9 +13,7 @@ const joinWaitlistSchema = z.object({
     .pipe(z.email("Enter a valid email address.")),
 });
 
-export type JoinWaitlistResult =
-  | { ok: true }
-  | { ok: false; error: string };
+export type JoinWaitlistResult = { ok: true } | { ok: false; error: string };
 
 export async function joinWaitlist(email: string): Promise<JoinWaitlistResult> {
   const parsed = joinWaitlistSchema.safeParse({ email });

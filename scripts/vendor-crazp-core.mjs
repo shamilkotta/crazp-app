@@ -51,7 +51,7 @@ function runCapture(command, args, options = {}) {
 
   if (result.status !== 0) {
     throw new Error(
-      `Command failed: ${command} ${args.join(" ")}\n${result.stderr || result.stdout}`,
+      `Command failed: ${command} ${args.join(" ")}\n${result.stderr || result.stdout}`
     );
   }
 
@@ -61,14 +61,14 @@ function runCapture(command, args, options = {}) {
 function readRequiredVersion() {
   if (!existsSync(versionFile)) {
     throw new Error(
-      `Missing version pin at ${versionFile}. Add a single semver line (e.g. 0.0.2).`,
+      `Missing version pin at ${versionFile}. Add a single semver line (e.g. 0.0.2).`
     );
   }
 
   const version = readFileSync(versionFile, "utf8").trim();
   if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
     throw new Error(
-      `Invalid crazp core version "${version}" in ${versionFile}`,
+      `Invalid crazp core version "${version}" in ${versionFile}`
     );
   }
 
@@ -83,7 +83,7 @@ function assertLocalVersion(coreDir, version) {
   const localVersion = readPackageJson(coreDir).version;
   if (localVersion !== version) {
     throw new Error(
-      `Local @crazp/core at ${coreDir} is ${localVersion}, but crazp-core.version pins ${version}`,
+      `Local @crazp/core at ${coreDir} is ${localVersion}, but crazp-core.version pins ${version}`
     );
   }
 }
@@ -120,7 +120,7 @@ function resolveLocalCoreDir(version) {
   const localVersion = readPackageJson(siblingCoreDir).version;
   if (localVersion !== version) {
     console.warn(
-      `Sibling @crazp/core is ${localVersion}, requested ${version}; cloning tagged release instead.`,
+      `Sibling @crazp/core is ${localVersion}, requested ${version}; cloning tagged release instead.`
     );
     return null;
   }
@@ -138,7 +138,7 @@ function resolveRefCommit(repoDir, version) {
       {
         cwd: repoDir,
         encoding: "utf8",
-      },
+      }
     );
     if (result.status === 0) {
       return { ref, commit: result.stdout.trim(), via: "tag" };
@@ -147,13 +147,13 @@ function resolveRefCommit(repoDir, version) {
 
   if (process.env.CRAZP_CORE_REQUIRE_TAGS === "1") {
     throw new Error(
-      `Missing git tag v${version} in crazp-core. Create it on the release commit, then re-run.`,
+      `Missing git tag v${version} in crazp-core. Create it on the release commit, then re-run.`
     );
   }
 
   // Fallback: newest commit whose package.json version matches.
   console.warn(
-    `No tag v${version} found; falling back to package.json history. Prefer tagging releases as v${version}.`,
+    `No tag v${version} found; falling back to package.json history. Prefer tagging releases as v${version}.`
   );
 
   const commits = runCapture(
@@ -161,7 +161,7 @@ function resolveRefCommit(repoDir, version) {
     ["rev-list", "HEAD", "--", "package.json"],
     {
       cwd: repoDir,
-    },
+    }
   )
     .split("\n")
     .filter(Boolean);
@@ -181,7 +181,7 @@ function resolveRefCommit(repoDir, version) {
   }
 
   throw new Error(
-    `Could not find @crazp/core@${version} in ${repoDir}. Tag the release commit as v${version}.`,
+    `Could not find @crazp/core@${version} in ${repoDir}. Tag the release commit as v${version}.`
   );
 }
 
@@ -220,14 +220,14 @@ function cloneCorePackage(version) {
       repoUrl,
       cloneDir,
     ],
-    { encoding: "utf8" },
+    { encoding: "utf8" }
   );
 
   if (tagClone.status === 0) {
     console.log(`Cloned crazp-core@${tag} into ${cloneDir}`);
   } else {
     console.log(
-      `Tag ${tag} not cloneable yet; cloning full history into ${cloneDir}`,
+      `Tag ${tag} not cloneable yet; cloning full history into ${cloneDir}`
     );
     if (existsSync(cloneDir)) {
       rmSync(cloneDir, { recursive: true, force: true });
@@ -237,7 +237,7 @@ function cloneCorePackage(version) {
 
     const { ref, commit, via } = resolveRefCommit(cloneDir, version);
     console.log(
-      `Checking out @crazp/core@${version} via ${via} (${ref} @ ${commit})`,
+      `Checking out @crazp/core@${version} via ${via} (${ref} @ ${commit})`
     );
     run("git", ["checkout", "--force", commit], { cwd: cloneDir });
   }
@@ -245,7 +245,7 @@ function cloneCorePackage(version) {
   const checkedVersion = readPackageJson(cloneDir).version;
   if (checkedVersion !== version) {
     throw new Error(
-      `Checked out @crazp/core@${checkedVersion}, expected ${version}`,
+      `Checked out @crazp/core@${checkedVersion}, expected ${version}`
     );
   }
 
@@ -290,7 +290,7 @@ function normalizePackedTarball(version) {
   }
 
   const matches = readdirSync(vendorDir).filter(
-    (name) => name.endsWith(`-${version}.tgz`) && name.includes("core"),
+    (name) => name.endsWith(`-${version}.tgz`) && name.includes("core")
   );
 
   if (matches.length === 1) {
@@ -305,7 +305,7 @@ function normalizePackedTarball(version) {
 function buildAndPack(
   coreDir,
   version,
-  { install = true, standalone = false } = {},
+  { install = true, standalone = false } = {}
 ) {
   if (standalone) {
     rewriteWorkspaceDependencies(coreDir);
@@ -322,7 +322,7 @@ function buildAndPack(
         "onlyBuiltDependencies[]=@mongodb-js/zstd",
         "onlyBuiltDependencies[]=node-liblzma",
         "",
-      ].join("\n"),
+      ].join("\n")
     );
     run("pnpm", ["install"], {
       cwd: coreDir,
@@ -365,7 +365,7 @@ function removeStaleTarballs(version) {
 function writeVendorEntry(version) {
   writeFileSync(
     vendorEntryPath,
-    `// Generated by scripts/vendor-crazp-core.mjs. Do not edit.\nexport { default } from "./crazp-core-${version}.tgz";\n`,
+    `// Generated by scripts/vendor-crazp-core.mjs. Do not edit.\nexport { default } from "./crazp-core-${version}.tgz";\n`
   );
   console.log(`Wrote ${vendorEntryPath} -> crazp-core-${version}.tgz`);
 }
@@ -405,7 +405,7 @@ function main() {
 
   if (shouldSkipPack(version, { hasLocalSource: Boolean(localCoreDir) })) {
     console.log(
-      `Skipping pack: ${vendorTarballPath(version)} already exists (set CRAZP_VENDOR_FORCE=1 to rebuild from clone)`,
+      `Skipping pack: ${vendorTarballPath(version)} already exists (set CRAZP_VENDOR_FORCE=1 to rebuild from clone)`
     );
     writeVendorEntry(version);
     removeStaleTarballs(version);

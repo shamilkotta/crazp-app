@@ -73,7 +73,11 @@ function WaitlistForm() {
         </Button>
       </div>
       {error ? (
-        <p id="waitlist-error" className="text-sm text-destructive" role="alert">
+        <p
+          id="waitlist-error"
+          className="text-sm text-destructive"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}

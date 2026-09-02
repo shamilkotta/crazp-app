@@ -88,9 +88,7 @@ async function ensureDocker(sandbox: Sandbox) {
 
   if (!version.success) {
     const detail = await describeDockerFailure(sandbox, version);
-    throw new Error(
-      `Docker is not available in the build sandbox:\n${detail}`
-    );
+    throw new Error(`Docker is not available in the build sandbox:\n${detail}`);
   }
 }
 
