@@ -5,11 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { AgentDetailData } from "@/lib/agents";
 import {
-  catalog,
   catalogSourceLabel,
   type CatalogField,
   type CatalogItem,
 } from "@/lib/catalog";
+import { useCatalogKind } from "@/components/catalog-provider";
 import { formatCount, shortModel } from "@/lib/display";
 import {
   Empty,
@@ -67,6 +67,7 @@ export function SubagentsTab({
   onCreate: (draft: SubagentDraft) => void;
   onInstall: (item: CatalogItem, draft?: Partial<SubagentDraft>) => void;
 }) {
+  const catalog = useCatalogKind("subagent");
   const [addedQuery, setAddedQuery] = useState("");
   const [catalogQuery, setCatalogQuery] = useState("");
   const [aside, setAside] = useState<AsideView>({ kind: "catalog" });
@@ -124,7 +125,6 @@ export function SubagentsTab({
   const catalogSubagents = useMemo(() => {
     const q = catalogQuery.trim().toLowerCase();
     return catalog.filter((item) => {
-      if (item.kind !== "subagent") return false;
       if (!q) return true;
       return (
         item.name.toLowerCase().includes(q) ||
@@ -132,7 +132,7 @@ export function SubagentsTab({
         item.tags.some((tag) => tag.includes(q))
       );
     });
-  }, [catalogQuery]);
+  }, [catalog, catalogQuery]);
 
   function markInstalling(id: string) {
     setInstallingIds((prev) => {
@@ -279,7 +279,7 @@ export function SubagentsTab({
                       setMobileSection("catalog");
                       setAside({
                         kind: "preview",
-                        preview: previewFromAdded(item),
+                        preview: previewFromAdded(item, catalog),
                       });
                     }}
                     actions={
@@ -480,12 +480,11 @@ function previewFromCatalog(item: CatalogItem): SubagentPreview {
 }
 
 function previewFromAdded(
-  subagent: AgentDetailData["subagents"][number]
+  subagent: AgentDetailData["subagents"][number],
+  catalog: CatalogItem[]
 ): SubagentPreview {
   const match = catalog.find(
-    (item) =>
-      item.kind === "subagent" &&
-      item.name.toLowerCase() === subagent.name.toLowerCase()
+    (item) => item.name.toLowerCase() === subagent.name.toLowerCase()
   );
   if (match) {
     return {

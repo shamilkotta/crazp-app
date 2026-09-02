@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { CreateAgentForm } from "@/components/create-agent-form";
+import { listCatalogTemplates } from "@/lib/catalog-query";
 import { requireTeam } from "@/lib/team";
 
 export default async function NewAgentPage({
@@ -9,10 +10,11 @@ export default async function NewAgentPage({
 }) {
   const { teamSlug } = await params;
   await requireTeam(teamSlug);
+  const templates = await listCatalogTemplates();
 
   return (
     <Suspense>
-      <CreateAgentForm teamSlug={teamSlug} />
+      <CreateAgentForm teamSlug={teamSlug} templates={templates} />
     </Suspense>
   );
 }

@@ -5,11 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { AgentDetailData } from "@/lib/agents";
 import {
-  catalog,
   catalogSourceLabel,
   type CatalogField,
   type CatalogItem,
 } from "@/lib/catalog";
+import { useCatalogKind } from "@/components/catalog-provider";
 import { formatCount } from "@/lib/display";
 import {
   Empty,
@@ -101,6 +101,7 @@ export function ConnectionsTab({
   onDelete: (type: ResourceKind, id: string) => void;
   onCreate: (draft: ConnectionDraft) => void;
 }) {
+  const catalog = useCatalogKind("connection");
   const [addedQuery, setAddedQuery] = useState("");
   const [catalogQuery, setCatalogQuery] = useState("");
   const [aside, setAside] = useState<AsideView>({ kind: "catalog" });
@@ -157,7 +158,6 @@ export function ConnectionsTab({
   const catalogConnections = useMemo(() => {
     const q = catalogQuery.trim().toLowerCase();
     return catalog.filter((item) => {
-      if (item.kind !== "connection") return false;
       if (!q) return true;
       return (
         item.name.toLowerCase().includes(q) ||
@@ -165,7 +165,7 @@ export function ConnectionsTab({
         item.tags.some((tag) => tag.includes(q))
       );
     });
-  }, [catalogQuery]);
+  }, [catalog, catalogQuery]);
 
   function handleCreate(draft: ConnectionDraft) {
     onCreate(draft);
@@ -292,7 +292,7 @@ export function ConnectionsTab({
                       setMobileSection("catalog");
                       setAside({
                         kind: "preview",
-                        preview: previewFromAdded(item),
+                        preview: previewFromAdded(item, catalog),
                       });
                     }}
                     actions={
@@ -496,11 +496,10 @@ function previewFromCatalog(item: CatalogItem): ConnectionPreview {
 }
 
 function previewFromAdded(
-  connection: AgentDetailData["connections"][number]
+  connection: AgentDetailData["connections"][number],
+  catalog: CatalogItem[]
 ): ConnectionPreview {
-  const match = catalog.find(
-    (item) => item.kind === "connection" && item.slug === connection.provider
-  );
+  const match = catalog.find((item) => item.slug === connection.provider);
   const label = String(
     (connection.configJson as { credentialLabel?: string } | null)
       ?.credentialLabel ?? ""

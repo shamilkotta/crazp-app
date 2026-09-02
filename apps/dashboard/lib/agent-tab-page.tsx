@@ -1,5 +1,6 @@
 import { AgentDetailPage } from "@/components/agent-detail";
 import type { AgentTab } from "@/components/board/agent-types";
+import { listCatalog } from "@/lib/catalog-query";
 import { requireTeamAgent } from "@/lib/team";
 
 export async function AgentTabPage({
@@ -10,7 +11,17 @@ export async function AgentTabPage({
   tab: AgentTab;
 }) {
   const { teamSlug, agentSlug } = await params;
-  const { agent } = await requireTeamAgent(teamSlug, agentSlug);
+  const [{ agent }, catalog] = await Promise.all([
+    requireTeamAgent(teamSlug, agentSlug),
+    listCatalog(),
+  ]);
 
-  return <AgentDetailPage agent={agent} teamSlug={teamSlug} tab={tab} />;
+  return (
+    <AgentDetailPage
+      agent={agent}
+      teamSlug={teamSlug}
+      tab={tab}
+      catalog={catalog}
+    />
+  );
 }

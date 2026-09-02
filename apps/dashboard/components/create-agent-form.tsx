@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { createAgent } from "@/lib/actions/agents";
 import { slugifyAgentName } from "@/lib/display";
-import { templates } from "@/lib/catalog";
+import type { CatalogItem } from "@/lib/catalog";
 import { MarkdownEditor } from "@/components/board/markdown-editor";
 import {
   Field,
@@ -17,7 +17,13 @@ import {
 } from "@/components/board/ui";
 import { cn } from "@workspace/ui/lib/utils";
 
-export function CreateAgentForm({ teamSlug }: { teamSlug: string }) {
+export function CreateAgentForm({
+  teamSlug,
+  templates,
+}: {
+  teamSlug: string;
+  templates: CatalogItem[];
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromTemplate = searchParams.get("from") === "template";

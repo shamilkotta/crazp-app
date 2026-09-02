@@ -4,7 +4,8 @@ import { Plus, Puzzle } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { catalog, type CatalogKind } from "@/lib/catalog";
+import type { CatalogKind } from "@/lib/catalog";
+import { useCatalog } from "@/components/catalog-provider";
 import {
   Empty,
   GhostButton,
@@ -48,12 +49,13 @@ export function ResourceList({
   onDelete: (id: string) => void;
   onCreate: (title: string) => void;
 }) {
+  const catalog = useCatalog();
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");
   const suggestions = useMemo(
     () =>
       kind ? catalog.filter((item) => item.kind === kind).slice(0, 4) : [],
-    [kind]
+    [catalog, kind]
   );
 
   function addDraft() {

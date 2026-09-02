@@ -5,10 +5,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import {
-  catalog,
   catalogKinds,
   catalogSourceLabel,
-  featuredCatalogSlugs,
   type CatalogItem,
   type CatalogKind,
 } from "@/lib/catalog";
@@ -16,18 +14,22 @@ import { formatCount, since } from "@/lib/display";
 import { Empty, Surface, inputClass } from "@/components/board/ui";
 import { cn } from "@workspace/ui/lib/utils";
 
-export function CatalogView({ teamSlug }: { teamSlug: string }) {
+export function CatalogView({
+  teamSlug,
+  items,
+}: {
+  teamSlug: string;
+  items: CatalogItem[];
+}) {
   const [kind, setKind] = useState<CatalogKind | "all">("all");
   const [source, setSource] = useState<"all" | "builtin" | "community">("all");
   const [query, setQuery] = useState("");
 
-  const featured = catalog.filter((item) =>
-    featuredCatalogSlugs.includes(item.slug)
-  );
+  const featured = items.filter((item) => item.featured);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return catalog.filter((item) => {
+    return items.filter((item) => {
       if (kind !== "all" && item.kind !== kind) return false;
       if (source !== "all" && item.source !== source) return false;
       if (!q) return true;
@@ -37,7 +39,7 @@ export function CatalogView({ teamSlug }: { teamSlug: string }) {
         item.tags.some((tag) => tag.includes(q))
       );
     });
-  }, [kind, source, query]);
+  }, [items, kind, source, query]);
 
   return (
     <div>

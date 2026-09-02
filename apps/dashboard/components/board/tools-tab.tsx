@@ -5,11 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { AgentDetailData } from "@/lib/agents";
 import {
-  catalog,
   catalogSourceLabel,
   type CatalogField,
   type CatalogItem,
 } from "@/lib/catalog";
+import { useCatalogKind } from "@/components/catalog-provider";
 import { formatCount } from "@/lib/display";
 import {
   Empty,
@@ -75,6 +75,7 @@ export function ToolsTab({
   onCreate: (draft: ToolDraft) => void;
   onInstall: (item: CatalogItem, config?: Record<string, string>) => void;
 }) {
+  const catalog = useCatalogKind("tool");
   const [addedQuery, setAddedQuery] = useState("");
   const [catalogQuery, setCatalogQuery] = useState("");
   const [aside, setAside] = useState<AsideView>({ kind: "catalog" });
@@ -131,7 +132,6 @@ export function ToolsTab({
   const catalogTools = useMemo(() => {
     const q = catalogQuery.trim().toLowerCase();
     return catalog.filter((item) => {
-      if (item.kind !== "tool") return false;
       if (!q) return true;
       return (
         item.name.toLowerCase().includes(q) ||
@@ -139,7 +139,7 @@ export function ToolsTab({
         item.tags.some((tag) => tag.includes(q))
       );
     });
-  }, [catalogQuery]);
+  }, [catalog, catalogQuery]);
 
   function markInstalling(id: string) {
     setInstallingIds((prev) => {
@@ -285,7 +285,7 @@ export function ToolsTab({
                       setMobileSection("catalog");
                       setAside({
                         kind: "preview",
-                        preview: previewFromAdded(item),
+                        preview: previewFromAdded(item, catalog),
                       });
                     }}
                     actions={
@@ -482,11 +482,12 @@ function previewFromCatalog(item: CatalogItem): ToolPreview {
   };
 }
 
-function previewFromAdded(tool: AgentDetailData["tools"][number]): ToolPreview {
+function previewFromAdded(
+  tool: AgentDetailData["tools"][number],
+  catalog: CatalogItem[]
+): ToolPreview {
   const match = catalog.find(
-    (item) =>
-      item.kind === "tool" &&
-      item.name.toLowerCase() === tool.name.toLowerCase()
+    (item) => item.name.toLowerCase() === tool.name.toLowerCase()
   );
   if (match) {
     return { ...previewFromCatalog(match), origin: "added", id: tool.id };

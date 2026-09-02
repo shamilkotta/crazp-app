@@ -33,6 +33,12 @@ export type AgentDeploymentManifest = {
       resources?: Record<string, unknown>[];
     }
   >;
+  channels?: Array<
+    Record<string, unknown> & {
+      provider?: string;
+      displayName?: string;
+    }
+  >;
   dependencies?: Array<{
     name: string;
     version: string;
@@ -266,9 +272,7 @@ export const channels = sqliteTable(
     agentId: text("agent_id")
       .notNull()
       .references(() => agents.id, { onDelete: "cascade" }),
-    provider: text("provider", {
-      enum: ["slack", "whatsapp", "telegram", "discord", "web", "email"],
-    }).notNull(),
+    provider: text("provider").notNull(),
     displayName: text("display_name").notNull(),
     configJson: text("config_json", { mode: "json" })
       .$type<Record<string, unknown>>()

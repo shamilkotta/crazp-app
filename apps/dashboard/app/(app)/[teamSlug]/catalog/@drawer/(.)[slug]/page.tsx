@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { CatalogListingDrawer } from "@/components/catalog-listing-drawer";
 import { listOrganizationAgents } from "@/lib/agents";
-import { catalogItem } from "@/lib/catalog";
+import { getCatalogItem } from "@/lib/catalog-query";
 import { requireTeam } from "@/lib/team";
 
 export default async function CatalogListingDrawerPage({
@@ -12,7 +12,7 @@ export default async function CatalogListingDrawerPage({
 }) {
   const { teamSlug, slug } = await params;
   const { organization } = await requireTeam(teamSlug);
-  const item = catalogItem(slug);
+  const item = await getCatalogItem(slug);
   if (!item) {
     notFound();
   }

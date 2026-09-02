@@ -98,14 +98,15 @@ const jsonObjectSchema = z
   .pipe(z.record(z.string(), z.unknown()));
 
 const createChannelSchema = agentActionSchema.extend({
-  provider: z.enum([
-    "slack",
-    "whatsapp",
-    "telegram",
-    "discord",
-    "web",
-    "email",
-  ]),
+  provider: z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .regex(
+      /^[a-z][a-z0-9_-]*$/,
+      "Provider must be lower_snake_case or kebab-case."
+    ),
   displayName: z.string().trim().min(1).max(80),
   credentialLabel: z.string().trim().max(160).optional(),
   webhookUrl: z.string().trim().max(500).optional(),
@@ -672,24 +673,69 @@ export async function createAgentChannel(formData: FormData) {
   );
   if (!authorized) return;
 
-  const configJson = parsed.data.configJson;
+  const configJson: Record<string, unknown> = {
+    ...parsed.data.configJson,
+    credentialLabel:
+      parsed.data.credentialLabel ?? parsed.data.configJson.credentialLabel,
+    webhookUrl: parsed.data.webhookUrl ?? parsed.data.configJson.webhookUrl,
+  };
 
-  await getDb()
-    .insert(agentChannels)
-    .values({
-      id: crypto.randomUUID(),
-      agentId: parsed.data.agentId,
-      provider: parsed.data.provider,
-      displayName: parsed.data.displayName,
-      configJson: {
-        ...configJson,
-        credentialLabel:
-          parsed.data.credentialLabel ?? configJson.credentialLabel,
-        webhookUrl: parsed.data.webhookUrl ?? configJson.webhookUrl,
-      },
-    });
+  if (
+    parsed.data.provider === "telegram" &&
+    typeof configJson.secretToken !== "string"
+  ) {
+    configJson.secretToken = crypto.randomUUID().replaceAll("-", "");
+  }
+
+  const existing = await getDb().query.channels.findMany({
+    columns: { provider: true, displayName: true, configJson: true },
+    where: eq(agentChannels.agentId, parsed.data.agentId),
+  });
+  const used = new Set(
+    existing.map((channel) => {
+      const stem = (channel.configJson as { _stem?: string } | null)?._stem;
+      return stem || channel.provider;
+    })
+  );
+  configJson._stem = allocateDashboardChannelStem(
+    parsed.data.provider,
+    parsed.data.displayName,
+    used
+  );
+
+  await getDb().insert(agentChannels).values({
+    id: crypto.randomUUID(),
+    agentId: parsed.data.agentId,
+    provider: parsed.data.provider,
+    displayName: parsed.data.displayName,
+    configJson,
+  });
 
   revalidateAgentPaths(parsed.data.teamSlug, authorized.agent.slug);
+}
+
+function allocateDashboardChannelStem(
+  provider: string,
+  displayName: string,
+  used: Set<string>
+) {
+  /** Must match core discovery: /^[a-z][a-z0-9_-]*$/ */
+  const sanitize = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]+/g, "_")
+      .replace(/^[^a-z]+/, "")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 64);
+  const base = sanitize(provider) || "channel";
+  if (!used.has(base)) return base;
+  const withName = sanitize(`${provider}_${displayName}`) || `${base}_2`;
+  if (!used.has(withName)) return withName;
+  let index = 2;
+  while (used.has(`${base}_${index}`)) index += 1;
+  return `${base}_${index}`;
 }
 
 export async function createAgentConnection(formData: FormData) {

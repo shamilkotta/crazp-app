@@ -4,7 +4,8 @@ import { ChevronLeft, Plus, Search, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { AgentDetailData } from "@/lib/agents";
-import { catalog, catalogSourceLabel, type CatalogItem } from "@/lib/catalog";
+import { catalogSourceLabel, type CatalogItem } from "@/lib/catalog";
+import { useCatalogKind } from "@/components/catalog-provider";
 import { formatCount } from "@/lib/display";
 import {
   MAX_SKILL_RESOURCE_BYTES,
@@ -75,6 +76,7 @@ export function SkillsTab({
   onCreate: (draft: SkillDraft) => void;
   onInstall: (item: CatalogItem) => void;
 }) {
+  const catalog = useCatalogKind("skill");
   const [addedQuery, setAddedQuery] = useState("");
   const [catalogQuery, setCatalogQuery] = useState("");
   const [aside, setAside] = useState<AsideView>({ kind: "catalog" });
@@ -129,7 +131,6 @@ export function SkillsTab({
   const catalogSkills = useMemo(() => {
     const q = catalogQuery.trim().toLowerCase();
     return catalog.filter((item) => {
-      if (item.kind !== "skill") return false;
       if (!q) return true;
       return (
         item.name.toLowerCase().includes(q) ||
@@ -137,7 +138,7 @@ export function SkillsTab({
         item.tags.some((tag) => tag.includes(q))
       );
     });
-  }, [catalogQuery]);
+  }, [catalog, catalogQuery]);
 
   function handleInstall(item: CatalogItem) {
     setInstallingIds((prev) => {
@@ -270,7 +271,7 @@ export function SkillsTab({
                       setMobileSection("catalog");
                       setAside({
                         kind: "preview",
-                        preview: previewFromAdded(item),
+                        preview: previewFromAdded(item, catalog),
                       });
                     }}
                     actions={
@@ -468,12 +469,11 @@ function previewFromCatalog(item: CatalogItem): SkillPreview {
 }
 
 function previewFromAdded(
-  skill: AgentDetailData["skills"][number]
+  skill: AgentDetailData["skills"][number],
+  catalog: CatalogItem[]
 ): SkillPreview {
   const match = catalog.find(
-    (item) =>
-      item.kind === "skill" &&
-      item.name.toLowerCase() === skill.name.toLowerCase()
+    (item) => item.name.toLowerCase() === skill.name.toLowerCase()
   );
   return {
     id: skill.id,

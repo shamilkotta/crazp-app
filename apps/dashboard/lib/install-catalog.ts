@@ -6,28 +6,7 @@ import {
   createAgentSubagent,
   createAgentTool,
 } from "@/lib/actions/agents";
-import type { CatalogItem } from "@/lib/catalog";
-
-const CHANNEL_PROVIDERS = [
-  "slack",
-  "whatsapp",
-  "telegram",
-  "discord",
-  "web",
-  "email",
-] as const;
-
-type ChannelProvider = (typeof CHANNEL_PROVIDERS)[number];
-
-function isChannelProvider(value: string): value is ChannelProvider {
-  return (CHANNEL_PROVIDERS as readonly string[]).includes(value);
-}
-
-function channelProvider(item: CatalogItem): ChannelProvider {
-  if (isChannelProvider(item.slug)) return item.slug;
-  if (item.slug === "web-widget") return "web";
-  return "web";
-}
+import { catalogChannelProvider, type CatalogItem } from "@/lib/catalog";
 
 function connectionAuthType(item: CatalogItem) {
   if (item.tags.includes("oauth")) return "oauth" as const;
@@ -54,6 +33,9 @@ export async function installCatalogItem(input: {
     values.botToken ||
     values.accessToken ||
     values.apiKey ||
+    values.token ||
+    values.authToken ||
+    values.appPassword ||
     values.credentialLabel ||
     item.name;
 
@@ -87,9 +69,10 @@ export async function installCatalogItem(input: {
         formData({
           teamSlug,
           agentId,
-          provider: channelProvider(item),
+          provider: catalogChannelProvider(item),
           displayName: item.name,
           credentialLabel,
+          configJson: JSON.stringify(values),
         })
       );
       return { kind: "resource" as const };

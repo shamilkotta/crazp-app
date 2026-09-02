@@ -5,11 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { AgentDetailData } from "@/lib/agents";
 import {
-  catalog,
+  catalogChannelProvider,
   catalogSourceLabel,
   type CatalogField,
   type CatalogItem,
 } from "@/lib/catalog";
+import { useCatalogKind } from "@/components/catalog-provider";
 import { formatCount } from "@/lib/display";
 import {
   Empty,
@@ -32,13 +33,7 @@ type ResourceKind =
   | "scheduledTask"
   | "workflowTask";
 
-export type ChannelProvider =
-  | "slack"
-  | "whatsapp"
-  | "telegram"
-  | "discord"
-  | "web"
-  | "email";
+export type ChannelProvider = string;
 
 export type ChannelDraft = {
   provider: ChannelProvider;
@@ -53,15 +48,6 @@ type AsideView =
   | { kind: "create" };
 
 type MobileSection = "added" | "catalog";
-
-const PROVIDERS: Array<{ value: ChannelProvider; label: string }> = [
-  { value: "slack", label: "Slack" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "telegram", label: "Telegram" },
-  { value: "discord", label: "Discord" },
-  { value: "web", label: "Web widget" },
-  { value: "email", label: "Email" },
-];
 
 const GENERAL_FIELDS: CatalogField[] = [
   {
@@ -89,14 +75,14 @@ const GENERAL_FIELDS: CatalogField[] = [
 ];
 
 function providerFromCatalog(item: CatalogItem): ChannelProvider {
-  if (item.slug === "web-widget") return "web";
-  const match = PROVIDERS.find((entry) => entry.value === item.slug);
-  return match?.value ?? "web";
+  return catalogChannelProvider(item);
 }
 
-function catalogSlugForProvider(provider: string) {
-  if (provider === "web") return "web-widget";
-  return provider;
+function catalogItemForProvider(catalog: CatalogItem[], provider: string) {
+  return catalog.find(
+    (item) =>
+      item.kind === "channel" && catalogChannelProvider(item) === provider
+  );
 }
 
 export function ChannelsTab({
@@ -113,6 +99,7 @@ export function ChannelsTab({
   onDelete: (type: ResourceKind, id: string) => void;
   onCreate: (draft: ChannelDraft) => void;
 }) {
+  const catalog = useCatalogKind("channel");
   const [addedQuery, setAddedQuery] = useState("");
   const [catalogQuery, setCatalogQuery] = useState("");
   const [aside, setAside] = useState<AsideView>({ kind: "catalog" });
@@ -165,7 +152,6 @@ export function ChannelsTab({
   const catalogChannels = useMemo(() => {
     const q = catalogQuery.trim().toLowerCase();
     return catalog.filter((item) => {
-      if (item.kind !== "channel") return false;
       if (!q) return true;
       return (
         item.name.toLowerCase().includes(q) ||
@@ -173,7 +159,7 @@ export function ChannelsTab({
         item.tags.some((tag) => tag.includes(q))
       );
     });
-  }, [catalogQuery]);
+  }, [catalog, catalogQuery]);
 
   function handleCreate(draft: ChannelDraft) {
     onCreate(draft);
@@ -255,6 +241,7 @@ export function ChannelsTab({
           <ChannelCreateForm
             pending={pending}
             backLabel="Channels"
+            catalog={catalog}
             onBack={() => setAside({ kind: "catalog" })}
             onCreate={handleCreate}
           />
@@ -301,7 +288,11 @@ export function ChannelsTab({
                       setMobileSection("catalog");
                       setAside({
                         kind: "preview",
-                        preview: previewFromAdded(item),
+                        preview: previewFromAdded(
+                          item,
+                          agent.deploymentUrl,
+                          catalog
+                        ),
                       });
                     }}
                     actions={
@@ -459,6 +450,7 @@ export function ChannelsTab({
             <div className="hidden lg:contents">
               <ChannelCreateForm
                 pending={pending}
+                catalog={catalog}
                 onBack={() => setAside({ kind: "catalog" })}
                 onCreate={handleCreate}
               />
@@ -482,6 +474,7 @@ type ChannelPreview = {
   tags: string[];
   provider?: string;
   credentialLabel?: string;
+  webhookUrl?: string;
   catalogItem: CatalogItem | null;
 };
 
@@ -501,22 +494,30 @@ function previewFromCatalog(item: CatalogItem): ChannelPreview {
 }
 
 function previewFromAdded(
-  channel: AgentDetailData["channels"][number]
+  channel: AgentDetailData["channels"][number],
+  deploymentUrl: string | null,
+  catalog: CatalogItem[]
 ): ChannelPreview {
-  const slug = catalogSlugForProvider(channel.provider);
-  const match = catalog.find(
-    (item) => item.kind === "channel" && item.slug === slug
-  );
-  const label = String(
-    (channel.configJson as { credentialLabel?: string } | null)
-      ?.credentialLabel ?? ""
-  );
+  const match = catalogItemForProvider(catalog, channel.provider);
+  const config =
+    (channel.configJson as {
+      credentialLabel?: string;
+      _stem?: string;
+    } | null) ?? {};
+  const label = String(config.credentialLabel ?? "");
+  const stem = config._stem || channel.provider;
+  const webhookUrl =
+    deploymentUrl && match?.hasWebhook
+      ? `${deploymentUrl.replace(/\/$/, "")}/messengers/${stem}/webhook`
+      : undefined;
   if (match) {
     return {
       ...previewFromCatalog(match),
       origin: "added",
       id: channel.id,
       credentialLabel: label || undefined,
+      webhookUrl,
+      provider: channel.provider,
     };
   }
   return {
@@ -528,6 +529,7 @@ function previewFromAdded(
     tags: [],
     provider: channel.provider,
     credentialLabel: label || undefined,
+    webhookUrl,
     catalogItem: null,
   };
 }
@@ -692,19 +694,36 @@ function ChannelConfigureForm({
 function ChannelCreateForm({
   pending,
   backLabel = "Catalog",
+  catalog,
   onBack,
   onCreate,
 }: {
   pending: boolean;
   backLabel?: string;
+  catalog: CatalogItem[];
   onBack: () => void;
   onCreate: (draft: ChannelDraft) => void;
 }) {
-  const [provider, setProvider] = useState<ChannelProvider>("web");
+  const providers = catalog.map((item) => ({
+    value: catalogChannelProvider(item),
+    label: item.name,
+  }));
+  const [provider, setProvider] = useState<ChannelProvider>(
+    providers[0]?.value ?? "telegram"
+  );
   const [displayName, setDisplayName] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
 
-  const canSubmit = displayName.trim().length > 0;
+  const catalogItem = catalogItemForProvider(catalog, provider);
+  const fields =
+    catalogItem && catalogItem.fields.length > 0
+      ? catalogItem.fields
+      : GENERAL_FIELDS;
+
+  const requiredReady = fields
+    .filter((field) => field.required)
+    .every((field) => (values[field.key] ?? "").trim().length > 0);
+  const canSubmit = displayName.trim().length > 0 && requiredReady;
 
   function submit() {
     if (!canSubmit || pending) return;
@@ -745,12 +764,13 @@ function ChannelCreateForm({
         <Field label="Provider">
           <select
             value={provider}
-            onChange={(event) =>
-              setProvider(event.target.value as ChannelProvider)
-            }
+            onChange={(event) => {
+              setProvider(event.target.value as ChannelProvider);
+              setValues({});
+            }}
             className={inputClass}
           >
-            {PROVIDERS.map((entry) => (
+            {providers.map((entry) => (
               <option key={entry.value} value={entry.value}>
                 {entry.label}
               </option>
@@ -768,7 +788,7 @@ function ChannelCreateForm({
           />
         </Field>
         <ChannelFieldInputs
-          fields={GENERAL_FIELDS}
+          fields={fields}
           values={values}
           onChange={(key, value) =>
             setValues((prev) => ({ ...prev, [key]: value }))
@@ -832,7 +852,8 @@ function ChannelOverlay({
         preview.version ||
         preview.installs != null ||
         preview.provider ||
-        preview.credentialLabel ? (
+        preview.credentialLabel ||
+        preview.webhookUrl ? (
           <dl className="mt-5 grid grid-cols-2 gap-3 text-[12px]">
             {preview.author ? (
               <div>
@@ -862,6 +883,14 @@ function ChannelOverlay({
               <div>
                 <dt className="text-muted-foreground">Credential</dt>
                 <dd className="mt-1">{preview.credentialLabel}</dd>
+              </div>
+            ) : null}
+            {preview.webhookUrl ? (
+              <div className="col-span-2">
+                <dt className="text-muted-foreground">Webhook URL</dt>
+                <dd className="mt-1 font-mono text-[11px] break-all">
+                  {preview.webhookUrl}
+                </dd>
               </div>
             ) : null}
           </dl>

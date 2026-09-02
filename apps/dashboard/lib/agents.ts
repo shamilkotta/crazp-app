@@ -1,3 +1,5 @@
+"server-only";
+
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { cache } from "react";
