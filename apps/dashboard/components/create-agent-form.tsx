@@ -7,13 +7,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createAgent } from "@/lib/actions/agents";
 import { slugifyAgentName } from "@/lib/display";
 import { templates } from "@/lib/catalog";
+import { MarkdownEditor } from "@/components/board/markdown-editor";
 import {
   Field,
   GhostButton,
   PrimaryButton,
   Surface,
   inputClass,
-  textareaClass,
 } from "@/components/board/ui";
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -126,14 +126,14 @@ export function CreateAgentForm({ teamSlug }: { teamSlug: string }) {
             label="Instructions"
             hint="This is what the agent actually is. Be specific about what it should and should not do."
           >
-            <textarea
+            <MarkdownEditor
+              className="min-h-72"
               value={instructions}
-              onChange={(event) => {
-                setInstructions(event.target.value);
+              onChange={(value) => {
+                setInstructions(value);
                 if (error) setError(null);
               }}
               placeholder="Read every inbound support message…"
-              className={cn(textareaClass, "min-h-36")}
             />
           </Field>
           {error ? (

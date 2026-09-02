@@ -93,6 +93,9 @@ export function MarkdownEditor({
           "[&_.w-md-editor]:border-0 [&_.w-md-editor]:bg-transparent [&_.w-md-editor]:shadow-none",
         "[&_.w-md-editor-toolbar]:border-border [&_.w-md-editor-toolbar]:bg-muted/50",
         "[&_.w-md-editor-content]:bg-background",
+        "[&_.w-md-editor-toolbar_li>button:focus:not(:focus-visible)]:bg-transparent",
+        "[&_.w-md-editor-toolbar_li>button:focus:not(:focus-visible)]:text-[var(--color-fg-default)]",
+        "[&_.w-md-editor-toolbar_li>button:focus-visible]:bg-muted",
         !fullscreen && className
       )}
     >

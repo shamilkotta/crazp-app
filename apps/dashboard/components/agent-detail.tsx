@@ -25,14 +25,20 @@ import {
   SubagentsTab,
   ToolsTab,
 } from "@/components/board/agent-tabs";
+import { ComingSoonTab } from "@/components/board/coming-soon-tab";
+import { MarkdownEditor } from "@/components/board/markdown-editor";
 import { agentTabHref, type AgentTab } from "@/components/board/agent-types";
 import {
   Field,
   PrimaryButton,
   inputClass,
-  textareaClass,
 } from "@/components/board/ui";
 import { cn } from "@workspace/ui/lib/utils";
+
+/** Flip to true when each tab is ready to ship. */
+const ENABLE_CONNECTIONS_TAB = false;
+const ENABLE_SUBAGENTS_TAB = false;
+const ENABLE_AUTOMATIONS_TAB = false;
 
 const tabs: Array<{ id: AgentTab; label: string }> = [
   { id: "overview", label: "Overview" },
@@ -146,10 +152,11 @@ export function AgentDetailPage({
             />
           </Field>
           <Field label="Instructions">
-            <textarea
+            <MarkdownEditor
+              className="min-h-72"
               value={instructions}
-              onChange={(event) => setInstructions(event.target.value)}
-              className={cn(textareaClass, "min-h-40")}
+              onChange={setInstructions}
+              placeholder="What the agent should do, how it should behave, and what to avoid…"
             />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -300,88 +307,127 @@ export function AgentDetailPage({
       ) : null}
 
       {tab === "connections" ? (
-        <ConnectionsTab
-          agent={agent}
-          teamSlug={teamSlug}
-          pending={pending}
-          onToggle={(type, id) =>
-            mutate(toggleAgentResource, { resourceType: type, resourceId: id })
-          }
-          onDelete={(type, id) =>
-            mutate(deleteAgentResource, { resourceType: type, resourceId: id })
-          }
-          onCreate={(draft) =>
-            mutate(createAgentConnection, {
-              displayName: draft.displayName,
-              provider: draft.provider,
-              authType: draft.authType,
-              scopes: draft.scopes ?? draft.config?.scopes ?? "",
-              credentialLabel:
-                draft.credentialLabel ?? draft.config?.credentialLabel ?? "",
-            })
-          }
-        />
+        ENABLE_CONNECTIONS_TAB ? (
+          <ConnectionsTab
+            agent={agent}
+            teamSlug={teamSlug}
+            pending={pending}
+            onToggle={(type, id) =>
+              mutate(toggleAgentResource, {
+                resourceType: type,
+                resourceId: id,
+              })
+            }
+            onDelete={(type, id) =>
+              mutate(deleteAgentResource, {
+                resourceType: type,
+                resourceId: id,
+              })
+            }
+            onCreate={(draft) =>
+              mutate(createAgentConnection, {
+                displayName: draft.displayName,
+                provider: draft.provider,
+                authType: draft.authType,
+                scopes: draft.scopes ?? draft.config?.scopes ?? "",
+                credentialLabel:
+                  draft.credentialLabel ?? draft.config?.credentialLabel ?? "",
+              })
+            }
+          />
+        ) : (
+          <ComingSoonTab
+            title="Connections"
+            body="Wire up GitHub, databases, support desks, and other services so your agent can read and act on real data."
+          />
+        )
       ) : null}
 
       {tab === "subagents" ? (
-        <SubagentsTab
-          agent={agent}
-          teamSlug={teamSlug}
-          pending={pending}
-          onToggle={(type, id) =>
-            mutate(toggleAgentResource, { resourceType: type, resourceId: id })
-          }
-          onDelete={(type, id) =>
-            mutate(deleteAgentResource, { resourceType: type, resourceId: id })
-          }
-          onCreate={(draft) =>
-            mutate(createAgentSubagent, {
-              name: draft.name,
-              description: draft.description ?? "",
-              instructions: draft.instructions ?? "",
-              model: draft.model,
-              maxSteps: String(draft.maxSteps),
-            })
-          }
-          onInstall={(item, draft) =>
-            mutate(createAgentSubagent, {
-              name: item.name,
-              description: item.summary,
-              instructions: item.description,
-              model: draft?.model ?? agent.model,
-              maxSteps: String(draft?.maxSteps ?? agent.maxSteps),
-            })
-          }
-        />
+        ENABLE_SUBAGENTS_TAB ? (
+          <SubagentsTab
+            agent={agent}
+            teamSlug={teamSlug}
+            pending={pending}
+            onToggle={(type, id) =>
+              mutate(toggleAgentResource, {
+                resourceType: type,
+                resourceId: id,
+              })
+            }
+            onDelete={(type, id) =>
+              mutate(deleteAgentResource, {
+                resourceType: type,
+                resourceId: id,
+              })
+            }
+            onCreate={(draft) =>
+              mutate(createAgentSubagent, {
+                name: draft.name,
+                description: draft.description ?? "",
+                instructions: draft.instructions ?? "",
+                model: draft.model,
+                maxSteps: String(draft.maxSteps),
+              })
+            }
+            onInstall={(item, draft) =>
+              mutate(createAgentSubagent, {
+                name: item.name,
+                description: item.summary,
+                instructions: item.description,
+                model: draft?.model ?? agent.model,
+                maxSteps: String(draft?.maxSteps ?? agent.maxSteps),
+              })
+            }
+          />
+        ) : (
+          <ComingSoonTab
+            title="Subagents"
+            body="Spin up focused agents your main agent can delegate to — each with its own instructions, model, and tools."
+          />
+        )
       ) : null}
 
       {tab === "automations" ? (
-        <AutomationsTab
-          agent={agent}
-          teamSlug={teamSlug}
-          pending={pending}
-          onToggle={(type, id) =>
-            mutate(toggleAgentResource, { resourceType: type, resourceId: id })
-          }
-          onDelete={(type, id) =>
-            mutate(deleteAgentResource, { resourceType: type, resourceId: id })
-          }
-          onCreateSchedule={(title) =>
-            mutate(createAgentScheduledTask, {
-              name: title,
-              schedule: "0 9 * * 1-5",
-              prompt: title,
-              timezone: "UTC",
-            })
-          }
-          onCreateWorkflow={(title) =>
-            mutate(createAgentWorkflowTask, {
-              name: title,
-              trigger: "manual",
-              steps: title,
-            })
-          }
-        />
+        ENABLE_AUTOMATIONS_TAB ? (
+          <AutomationsTab
+            agent={agent}
+            teamSlug={teamSlug}
+            pending={pending}
+            onToggle={(type, id) =>
+              mutate(toggleAgentResource, {
+                resourceType: type,
+                resourceId: id,
+              })
+            }
+            onDelete={(type, id) =>
+              mutate(deleteAgentResource, {
+                resourceType: type,
+                resourceId: id,
+              })
+            }
+            onCreateSchedule={(title) =>
+              mutate(createAgentScheduledTask, {
+                name: title,
+                schedule: "0 9 * * 1-5",
+                prompt: title,
+                timezone: "UTC",
+              })
+            }
+            onCreateWorkflow={(title) =>
+              mutate(createAgentWorkflowTask, {
+                name: title,
+                trigger: "manual",
+                steps: title,
+              })
+            }
+          />
+        ) : (
+          <ComingSoonTab
+            title="Automations"
+            body="Schedule recurring prompts and build workflows that run your agent on a clock or when something happens."
+          />
+        )
       ) : null}
     </div>
   );

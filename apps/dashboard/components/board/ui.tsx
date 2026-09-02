@@ -258,7 +258,7 @@ export function Field({
   hint?: string;
 }) {
   return (
-    <label className="block">
+    <div className="block">
       <span className="text-[12px] font-medium text-muted-foreground">
         {label}
       </span>
@@ -268,7 +268,7 @@ export function Field({
           {hint}
         </span>
       ) : null}
-    </label>
+    </div>
   );
 }
 
