@@ -15,6 +15,7 @@ export function ThemeProvider({
       disableTransitionOnChange
       enableColorScheme
       storageKey="crazp-color-scheme"
+      scriptProps={{ "data-cfasync": "false" }}
       {...props}
     >
       {children}
